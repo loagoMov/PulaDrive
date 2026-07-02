@@ -48,7 +48,7 @@ export default function Footer() {
                         <div className="space-y-3">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dealers</p>
                             <div className="space-y-2">
-                                {orgLoaded && orgId ? (
+                                {userLoaded && user ? (
                                     <>
                                         <Link href="/dashboard" className="block font-medium text-slate-600 hover:text-primary-600 transition-colors">Dealer Portal</Link>
                                         <Link href="/dashboard/analytics" className="block font-medium text-slate-600 hover:text-primary-600 transition-colors">Analytics</Link>

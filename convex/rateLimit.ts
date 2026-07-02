@@ -31,6 +31,8 @@ export const RATE_LIMITS = {
     CREATE_DEALERSHIP:   { maxRequests: 3,  windowMs: 60 * 60_000 } satisfies RateLimitConfig,
     // Email/phone updates
     UPDATE_CONTACT:      { maxRequests: 10, windowMs: 60 * 60_000 } satisfies RateLimitConfig,
+    // Telemetry submissions — high volume but still bounded
+    TELEMETRY_LOG:       { maxRequests: 100, windowMs: 60_000 } satisfies RateLimitConfig,
 } as const;
 
 // ─── Core Rate Limit Enforcer ─────────────────────────────────────────────────
@@ -107,3 +109,28 @@ export async function checkRateLimit(
 export function rateLimitKey(action: string, scope: string, id?: string): string {
     return id ? `${action}:${scope}:${id}` : `${action}:${scope}`;
 }
+
+import { internalMutation } from "./_generated/server";
+
+export const cleanupExpiredRateLimits = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+        let processed = 0;
+        while (processed < 1000) {
+            const stale = await ctx.db.query("rateLimits")
+                .collect(); // Scan all is acceptable in a cron job capped at 100 entries per loop
+            
+            // Filter stale entries in memory
+            const staleEntries = stale.filter(item => item.windowStart < twoHoursAgo);
+            if (staleEntries.length === 0) break;
+            
+            const chunk = staleEntries.slice(0, 100);
+            for (const item of chunk) {
+                await ctx.db.delete(item._id);
+            }
+            processed += chunk.length;
+            if (staleEntries.length <= 100) break;
+        }
+    }
+});

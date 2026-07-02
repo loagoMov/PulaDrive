@@ -1,7 +1,7 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { requireGlobalAdmin } from "./utils";
+import { requireGlobalAdmin, isGlobalAdmin } from "./utils";
 
 export const generateInvoiceUrl = (dealerName: string, bursTin: string, invoiceNumber: string, amountPula?: number, dueDate?: string, description?: string) => {
     // Builds a fully-qualified URL to the CarPlace invoice renderer
@@ -56,6 +56,10 @@ export const processBankStatement = mutation({
         }))
     },
     handler: async (ctx, args) => {
+        await requireGlobalAdmin(ctx);
+        if (args.rows.length > 500) {
+            throw new ConvexError("Cannot process more than 500 rows at once.");
+        }
         const evaluatedTransactions = [];
         
         // Load dealers for matching
@@ -141,6 +145,7 @@ export const linkManualAliasToDealer = mutation({
         amount: v.number(),
     },
     handler: async (ctx, args) => {
+        await requireGlobalAdmin(ctx);
         const dealer = await ctx.db.get(args.dealerId);
         if (!dealer) throw new Error("Dealer not found");
         
@@ -171,6 +176,7 @@ export const linkManualAliasToDealer = mutation({
 export const markInvoiceAsPaid = mutation({
     args: { invoiceId: v.id("invoices") },
     handler: async (ctx, args) => {
+        await requireGlobalAdmin(ctx);
         await ctx.db.patch(args.invoiceId, { status: "paid" });
     }
 });
@@ -178,6 +184,7 @@ export const markInvoiceAsPaid = mutation({
 // Admin helper query to get all dealers
 export const getAllDealers = query({
     handler: async (ctx) => {
+        await requireGlobalAdmin(ctx);
         return await ctx.db.query("dealerships").collect();
     }
 });
@@ -185,6 +192,7 @@ export const getAllDealers = query({
 // Admin helper query to get pending invoices
 export const getPendingInvoices = query({
     handler: async (ctx) => {
+        await requireGlobalAdmin(ctx);
         return await ctx.db.query("invoices")
             .withIndex("by_status", (q) => q.eq("status", "pending"))
             .collect();
@@ -195,6 +203,20 @@ export const getPendingInvoices = query({
 export const getDealerInvoices = query({
     args: { dealerId: v.id("dealerships") },
     handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new ConvexError("Unauthorized: You must be signed in.");
+        
+        const dealer = await ctx.db.get(args.dealerId);
+        if (!dealer) throw new ConvexError("Dealership not found");
+        
+        const isAdmin = await isGlobalAdmin(ctx);
+        if (!isAdmin) {
+            const callerOrgId = identity.orgID ?? identity.orgId ?? identity.subject;
+            if (dealer.clerkOrgId !== callerOrgId) {
+                throw new ConvexError("Forbidden: Access denied.");
+            }
+        }
+
         return await ctx.db.query("invoices")
             .withIndex("by_dealer", (q) => q.eq("dealerId", args.dealerId))
             .collect();
@@ -208,6 +230,7 @@ export const createMockInvoice = mutation({
         amount: v.number(),
     },
     handler: async (ctx, args) => {
+        await requireGlobalAdmin(ctx);
         const dealer = await ctx.db.get(args.dealerId);
         if (!dealer) throw new Error("Dealer not found");
 
@@ -249,6 +272,20 @@ export const createMockInvoice = mutation({
 export const getDealerBillingSummary = query({
     args: { dealerId: v.id("dealerships") },
     handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new ConvexError("Unauthorized: You must be signed in.");
+        
+        const dealer = await ctx.db.get(args.dealerId);
+        if (!dealer) throw new ConvexError("Dealership not found");
+        
+        const isAdmin = await isGlobalAdmin(ctx);
+        if (!isAdmin) {
+            const callerOrgId = identity.orgID ?? identity.orgId ?? identity.subject;
+            if (dealer.clerkOrgId !== callerOrgId) {
+                throw new ConvexError("Forbidden: Access denied.");
+            }
+        }
+
         const invoices = await ctx.db.query("invoices")
             .withIndex("by_dealer", (q) => q.eq("dealerId", args.dealerId))
             .collect();
@@ -272,6 +309,7 @@ export const getDealerBillingSummary = query({
 // Admin roster: every dealer with their billing health snapshot
 export const getAllDealersBillingSummary = query({
     handler: async (ctx) => {
+        await requireGlobalAdmin(ctx);
         const dealers = await ctx.db.query("dealerships").collect();
         const allInvoices = await ctx.db.query("invoices").collect();
 

@@ -30,7 +30,7 @@ export default function CompliancePage() {
                     Data & Compliance
                 </h1>
                 <p className="text-slate-500 font-medium">
-                    Effective date: <strong className="text-slate-700">25 June 2026</strong> · Last reviewed: 25 June 2026
+                    Effective date: <strong className="text-slate-700">25 June 2026</strong> · Last reviewed: <strong className="text-slate-700">2 July 2026</strong>
                 </p>
                 <p className="text-slate-600 leading-relaxed text-sm max-w-2xl">
                     This document describes CarPlace's data processing architecture, the third-party infrastructure providers we rely on, our internal compliance practices, and the obligations of dealerships using our platform. It supplements our <Link href="/legal/privacy" className="text-primary-600 hover:underline font-bold">Privacy Policy</Link>.
@@ -83,6 +83,18 @@ export default function CompliancePage() {
                             role: "Web Hosting & Edge Network",
                             detail: "CarPlace's web application is hosted on Vercel's global edge network. Vercel does not process personal user data beyond standard HTTP request logs needed for operation.",
                             link: "https://vercel.com/legal/privacy-policy",
+                        },
+                        {
+                            name: "Upstash",
+                            role: "Redis Caching Layer",
+                            detail: "Upstash Redis is used to cache anonymised search query results (e.g. price ranges, vehicle categories) for up to 5 minutes, reducing latency for users. No personally identifiable information — including names, emails, or account data — is stored in Redis. All cached keys are automatically expired via Redis TTL mechanisms. Data is encrypted at rest and in transit (TLS 1.2+). Upstash is SOC 2 Type II certified.",
+                            link: "https://upstash.com/privacy",
+                        },
+                        {
+                            name: "Resend",
+                            role: "Transactional Email",
+                            detail: "Dealer notification and billing reminder emails are dispatched via Resend. Resend processes the recipient email address and message content only. No user browsing data is shared with Resend.",
+                            link: "https://resend.com/privacy",
                         },
                     ].map((sp) => (
                         <div key={sp.name} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
@@ -163,10 +175,15 @@ export default function CompliancePage() {
             <Section icon={Lock} title="5. Security Measures">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
-                        { measure: "Encryption at Rest", detail: "All database records are encrypted using AES-256 via Convex's managed infrastructure." },
-                        { measure: "Encryption in Transit", detail: "All data transmitted between your browser and our servers uses TLS 1.2 or higher." },
-                        { measure: "Authentication Security", detail: "Clerk enforces rate limiting, brute-force protection, and secure session management." },
-                        { measure: "Access Controls", detail: "Dealer dashboards are protected by Clerk organization membership. Admin access requires explicit whitelisting." },
+                        { measure: "Encryption at Rest", detail: "All database records on Convex are encrypted using AES-256. Redis cache entries on Upstash are encrypted at rest. No plaintext personal data is persisted to any unencrypted storage." },
+                        { measure: "Encryption in Transit", detail: "All data transmitted between your browser and our servers uses TLS 1.2 or higher. This applies to Convex, Upstash Redis, Clerk, and Vercel endpoints." },
+                        { measure: "Authentication Security", detail: "Clerk enforces rate limiting, brute-force protection, and secure session management. Multi-factor authentication is available for all user accounts." },
+                        { measure: "Access Controls", detail: "Dealer dashboards are protected by Clerk organization membership. Admin access requires explicit whitelisting via environment-variable-controlled lists. All sensitive mutations are guarded server-side." },
+                        { measure: "Rate Limiting", detail: "All public-facing mutations (search saves, vehicle reports, uploads, featured applications, telemetry) are protected by sliding-window rate limits enforced at the server layer. This prevents abuse and protects service availability." },
+                        { measure: "Input Validation & Sanitisation", detail: "All API parameters are validated server-side. Enum fields (fuel type, category, colour, transmission) are whitelisted. Free-text inputs (make/model search) are sanitised to strip non-printable characters and capped at 100 characters. Cache key injection is prevented by capping key length at 512 characters." },
+                        { measure: "Webhook & API Security", detail: "Internal HTTP endpoints (telemetry export, analytics import) are protected using constant-time HMAC secret comparison to prevent timing oracle attacks. Payload sizes are capped at 1MB to prevent denial-of-service." },
+                        { measure: "HTTP Security Headers", detail: "All responses include X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Strict-Transport-Security (production), Referrer-Policy: no-referrer, Permissions-Policy, Content-Security-Policy, Cross-Origin-Resource-Policy, and X-Permitted-Cross-Domain-Policies headers." },
+                        { measure: "Cache Data Isolation", detail: "Upstash Redis only ever stores anonymised, non-personal search filter parameters with automatic 5-minute TTL expiration. User identity data is never written to the cache layer." },
                         { measure: "Incident Response", detail: "In the event of a data breach, we will notify affected users within 72 hours of discovery, as required by applicable law." },
                         { measure: "No Password Storage", detail: "CarPlace never stores passwords. Authentication is delegated entirely to Clerk." },
                     ].map((item) => (

@@ -30,7 +30,7 @@ export default function PrivacyPage() {
                     Privacy Policy
                 </h1>
                 <p className="text-slate-500 font-medium">
-                    Effective date: <strong className="text-slate-700">25 June 2026</strong> · Last reviewed: 25 June 2026
+                    Effective date: <strong className="text-slate-700">25 June 2026</strong> · Last reviewed: <strong className="text-slate-700">2 July 2026</strong>
                 </p>
                 <p className="text-slate-600 leading-relaxed text-sm max-w-2xl">
                     CarPlace (Pty) Ltd ("<strong>CarPlace</strong>", "we", "our", or "us") is committed to protecting the privacy of everyone who uses our platform. This Privacy Policy explains what personal information we collect, how we use it, who we share it with, and what rights you have under the <strong>Botswana Data Protection Act, 2018</strong>.
@@ -107,7 +107,8 @@ export default function PrivacyPage() {
                     {[
                         { party: "Dealerships", detail: "Dealerships can see anonymised engagement metrics for their own listings (views, wishlist adds). They cannot see individual user identities unless you initiate contact via WhatsApp." },
                         { party: "Clerk (Authentication)", detail: "Your sign-in is managed by Clerk Inc. Clerk processes authentication data under their own privacy policy. We receive only your profile details upon sign-in." },
-                        { party: "Convex (Database)", detail: "All application data is stored on Convex's cloud infrastructure. Data is encrypted at rest and in transit. Convex does not use your data for any purpose other than providing storage services to CarPlace." },
+                        { party: "Convex (Database)", detail: "All application data is stored on Convex's cloud infrastructure. Data is encrypted at rest (AES-256) and in transit (TLS 1.2+). Convex does not use your data for any purpose other than providing storage services to CarPlace." },
+                        { party: "Upstash Redis (Caching Layer)", detail: "Search query results are temporarily cached in Upstash Redis for up to 5 minutes to improve response times. Only anonymised, non-personally-identifiable search parameters (price ranges, vehicle categories, etc.) are stored as cache keys. No user account data, names, or contact details are ever written to Redis. Data is encrypted at rest and in transit via TLS 1.2+." },
                         { party: "Legal Authorities", detail: "We may disclose personal data if required to do so by law, court order, or lawful request from governmental authorities in Botswana or applicable jurisdictions." },
                     ].map((item) => (
                         <div key={item.party} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">

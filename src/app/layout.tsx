@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import Footer from "@/components/ui/Footer";
+import CookieConsent from "@/components/ui/CookieConsent";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -33,6 +34,7 @@ export default function RootLayout({
                             {children}
                         </main>
                         <Footer />
+                        <CookieConsent />
                     </div>
                 </body>
             </html>

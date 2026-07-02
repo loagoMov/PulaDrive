@@ -37,7 +37,7 @@ export default function MobileNav() {
         { href: "/", icon: Home, label: "Home", exact: true },
         { href: "/search", icon: Search, label: "Search" },
         { href: "/dealers", icon: Store, label: "Dealers" },
-        ...(authLoaded && orgId ? [{ href: "/dashboard", icon: LayoutDashboard, label: "Dealer" }] : []),
+        ...(authLoaded && isSignedIn ? [{ href: "/dashboard", icon: LayoutDashboard, label: "My Dealer" }] : []),
         ...(isGlobalAdmin ? [{ href: "/admin", icon: Shield, label: "Admin" }] : []),
     ];
 
@@ -81,8 +81,8 @@ export default function MobileNav() {
             <NavLink href="/search" icon={Search} label="Search" />
             <NavLink href="/dealers" icon={Store} label="Dealers" />
 
-            {authLoaded && orgId && (
-                <NavLink href="/dashboard" icon={LayoutDashboard} label="Dealer" />
+            {authLoaded && isSignedIn && (
+                <NavLink href="/dashboard" icon={LayoutDashboard} label="My Dealer" />
             )}
 
             {isGlobalAdmin && (

@@ -436,18 +436,15 @@ export const getFeatured = query({
     args: {},
     handler: async (ctx) => {
         const now = Date.now();
-        // Fetch active listings and filter by featuredUntil in memory to avoid Convex DB query filter panics
+        // Fetch active listings sorted by featuredUntil descending using index
         const results = await ctx.db
             .query("vehicles")
-            .withIndex("by_status", (q) => q.eq("status", "available"))
+            .withIndex("by_status_and_featured_until", (q) => q.eq("status", "available").gt("featuredUntil", now))
+            .order("desc")
             .take(100);
 
-        const featured = results.filter(
-            (car) => car.featuredUntil !== undefined && car.featuredUntil !== null && car.featuredUntil > now
-        );
-
         const mapped = await Promise.all(
-            featured.map(async (car) => {
+            results.map(async (car) => {
                 const imageUrls = car.images
                     ? (await Promise.all(
                         car.images.map(async (id) => await ctx.storage.getUrl(id))
@@ -461,9 +458,9 @@ export const getFeatured = query({
             })
         );
 
-        // Random-sort to keep it dynamic
-        const shuffled = mapped.sort(() => Math.random() - 0.5);
-        return shuffled.slice(0, 5);
+        // Sort deterministically to allow Convex reactive caching to function properly.
+        // If shuffling is needed, it should be done client-side using a seed or randomizer.
+        return mapped.slice(0, 10);
     },
 });
 
@@ -497,12 +494,20 @@ export const advancedSearch = query({
         makeModel:    v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const all = await ctx.db
-            .query("vehicles")
-            .withIndex("by_status", (q) => q.eq("status", "available"))
-            .take(300);
+        let results;
+        if (args.category) {
+            results = await ctx.db
+                .query("vehicles")
+                .withIndex("by_status_and_category", (q) => q.eq("status", "available").eq("category", args.category as any))
+                .take(300);
+        } else {
+            results = await ctx.db
+                .query("vehicles")
+                .withIndex("by_status", (q) => q.eq("status", "available"))
+                .take(300);
+        }
 
-        const dealerIds = Array.from(new Set(all.map((r) => r.dealerId)));
+        const dealerIds = Array.from(new Set(results.map((r) => r.dealerId)));
         const dealers = await Promise.all(dealerIds.map((id) => ctx.db.get(id)));
         const dealerMap = new Map(
             dealers.filter((d) => d !== null).map((d) => [d!._id, d!])
@@ -511,7 +516,7 @@ export const advancedSearch = query({
         const queryLower = (args.makeModel ?? "").toLowerCase().trim();
 
         const scored = await Promise.all(
-            all.map(async (car) => {
+            results.map(async (car) => {
                 // Hard filters
                 if (args.budgetMin  !== undefined && car.price < args.budgetMin)  return null;
                 if (args.budgetMax  !== undefined && car.price > args.budgetMax)  return null;
@@ -520,7 +525,6 @@ export const advancedSearch = query({
                 if (args.mileageMax !== undefined && (car.mileage ?? 0) > args.mileageMax) return null;
                 if (args.fuelType     && car.fuelType?.toLowerCase()     !== args.fuelType.toLowerCase())     return null;
                 if (args.transmission && car.transmission?.toLowerCase() !== args.transmission.toLowerCase()) return null;
-                if (args.category     && car.category                    !== args.category)                   return null;
                 if (args.color && !car.color?.toLowerCase().includes(args.color.toLowerCase())) return null;
 
                 // Soft scores

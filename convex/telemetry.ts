@@ -1,5 +1,6 @@
 import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
+import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "./rateLimit";
 
 export const logEvents = mutation({
   args: {
@@ -15,8 +16,19 @@ export const logEvents = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    if (args.events.length > 50) {
+      throw new ConvexError("Cannot submit more than 50 events at once.");
+    }
     const identity = await ctx.auth.getUserIdentity();
     const userId = identity?.subject || undefined;
+    
+    // Rate limit per user or per session if anonymous
+    const rateLimitId = userId || args.events[0]?.anonymousSessionId || "global";
+    await checkRateLimit(
+        ctx,
+        rateLimitKey("telemetry", "user", rateLimitId),
+        RATE_LIMITS.TELEMETRY_LOG
+    );
 
     for (const event of args.events) {
       await ctx.db.insert("telemetryLogs", {

@@ -15,4 +15,10 @@ crons.interval(
     internal.billing_crons.sweepInvoices
 );
 
+crons.interval(
+    "cleanup rate limits",
+    { hours: 24 },
+    internal.rateLimit.cleanupExpiredRateLimits
+);
+
 export default crons;

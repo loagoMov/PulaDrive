@@ -43,15 +43,12 @@ export const apply = mutation({
         if (args.durationDays === 14) price = 450;
         if (args.durationDays === 30) price = 600;
 
-        // MED-04 fix: replaced unbounded .collect() with .take(500) to prevent
-        // full-table scans that grow with inventory size.
         const now = Date.now();
         const activeFeatured = await ctx.db
             .query("vehicles")
+            .withIndex("by_status_and_featured_until", (q) => q.eq("status", "available").gt("featuredUntil", now))
             .take(500);
-        const activeCount = activeFeatured.filter(
-            (v) => v.featuredUntil !== undefined && v.featuredUntil !== null && v.featuredUntil > now
-        ).length;
+        const activeCount = activeFeatured.length;
 
         const status = activeCount >= 10 ? "waitlisted" : "pending";
 
@@ -221,14 +218,12 @@ export const getActiveSlots = query({
     args: {},
     handler: async (ctx) => {
         const now = Date.now();
-        // MED-04 fix: was .collect() (full table scan). Capped at 500 rows;
-        // in practice featured slots are max 10 so this is more than sufficient.
+        // Count active featured slots directly using the new index
         const activeFeatured = await ctx.db
             .query("vehicles")
+            .withIndex("by_status_and_featured_until", (q) => q.eq("status", "available").gt("featuredUntil", now))
             .take(500);
-        const activeCount = activeFeatured.filter(
-            (v) => v.featuredUntil !== undefined && v.featuredUntil !== null && v.featuredUntil > now
-        ).length;
+        const activeCount = activeFeatured.length;
 
         return {
             activeCount,

@@ -30,7 +30,7 @@ export default function TermsPage() {
                     Terms of Use
                 </h1>
                 <p className="text-slate-500 font-medium">
-                    Effective date: <strong className="text-slate-700">25 June 2026</strong> · Last reviewed: 25 June 2026
+                    Effective date: <strong className="text-slate-700">25 June 2026</strong> · Last reviewed: <strong className="text-slate-700">2 July 2026</strong>
                 </p>
                 <p className="text-slate-600 leading-relaxed text-sm max-w-2xl">
                     These Terms of Use ("Terms") govern your access to and use of the CarPlace platform, including our website, mobile interfaces, and all related services ("Platform") operated by <strong>CarPlace (Pty) Ltd</strong>, a company registered in Botswana. Please read these Terms carefully before using our Platform.
@@ -79,6 +79,7 @@ export default function TermsPage() {
                                 "You may browse listings, add vehicles to your wishlist, and contact dealerships.",
                                 "All contact with dealerships must be made in good faith.",
                                 "You may not use CarPlace to scrape, harvest, or automatically extract listing data.",
+                                "Automated or high-frequency requests that exceed normal browsing behaviour may be rate-limited or blocked to protect platform availability for all users.",
                             ].map((item, i) => (
                                 <li key={i} className="flex items-start gap-2.5">
                                     <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-1.5 shrink-0" />

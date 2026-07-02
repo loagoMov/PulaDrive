@@ -34,6 +34,11 @@ const nextConfig = {
           // but frame-ancestors in CSP is the modern standard (see below).
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          // Cross-origin isolation headers for SharedArrayBuffer and side-channel attack protection
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          // Block Adobe Flash cross-domain requests (legacy defence-in-depth)
+          { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
           // Only send HSTS in production – sending it on localhost makes Safari
           // permanently upgrade http:// → https://, breaking the dev server.
           ...(process.env.NODE_ENV === "production"
@@ -69,9 +74,9 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://*.convex.cloud https://img.clerk.com https://images.clerk.dev",
-              // Connections: Convex realtime + Clerk APIs
+              // Connections: Convex realtime + Clerk APIs + Upstash Redis REST API
               // In development, also allow localhost for RSC payload fetches and HMR
-              `connect-src 'self' ${process.env.NODE_ENV !== "production" ? "http://localhost:* ws://localhost:* http://127.0.0.1:*" : ""} https://*.convex.cloud wss://*.convex.cloud https://*.clerk.com https://*.clerk.accounts.dev https://*.clerk.dev https://clerk-telemetry.com`,
+              `connect-src 'self' ${process.env.NODE_ENV !== "production" ? "http://localhost:* ws://localhost:* http://127.0.0.1:*" : ""} https://*.convex.cloud wss://*.convex.cloud https://*.clerk.com https://*.clerk.accounts.dev https://*.clerk.dev https://clerk-telemetry.com https://pumped-egret-156334.upstash.io`,
               "worker-src 'self' blob:",
               // Frames: Clerk OAuth popups and Cloudflare Turnstile
               "frame-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://*.clerk.dev https://challenges.cloudflare.com",
@@ -93,6 +98,33 @@ const nextConfig = {
             : [{ key: "Cache-Control", value: "no-store" }]),
         ],
       },
+      // Cache-Control headers for public routes in production to optimize performance
+      ...(process.env.NODE_ENV === "production" ? [
+        {
+          source: "/",
+          headers: [
+            { key: "Cache-Control", value: "public, max-age=60, stale-while-revalidate=300" }
+          ]
+        },
+        {
+          source: "/listings/:id*",
+          headers: [
+            { key: "Cache-Control", value: "public, max-age=120, stale-while-revalidate=600" }
+          ]
+        },
+        {
+          source: "/search/:path*",
+          headers: [
+            { key: "Cache-Control", value: "public, max-age=30, stale-while-revalidate=60" }
+          ]
+        },
+        {
+          source: "/dealers/:path*",
+          headers: [
+            { key: "Cache-Control", value: "public, max-age=120, stale-while-revalidate=600" }
+          ]
+        }
+      ] : []),
       // Stricter no-cache headers on authenticated routes
       {
         source: "/(admin|dashboard|profile)(.*)",

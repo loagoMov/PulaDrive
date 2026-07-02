@@ -89,6 +89,7 @@ export default defineSchema({
         .index("by_dealer", ["dealerId"])
         .index("by_status", ["status"])
         .index("by_status_and_category", ["status", "category"])
+        .index("by_status_and_featured_until", ["status", "featuredUntil"])
         .searchIndex("search_vehicles", {
             searchField: "searchText",
             filterFields: ["status"],

@@ -2,32 +2,26 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { UserButton, useOrganization, useOrganizationList, OrganizationSwitcher, CreateOrganization, OrganizationList, useUser } from "@clerk/nextjs";
+import { UserButton, useOrganization, useUser } from "@clerk/nextjs";
 import MobileNav from "@/components/navigation/MobileNav";
-import { Plus, TrendingUp, Car, Building2, Loader2, Flame, Shield, Users, Trash2, Phone, CreditCard, ChevronRight, AlertCircle } from "lucide-react";
+import { Plus, TrendingUp, Car, Loader2, Flame, Users, Trash2, Phone, CreditCard, AlertCircle, Shield } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import NotificationCenter from "../components/NotificationCenter";
 import AddVehicleForm from "@/components/dashboard/AddVehicleForm";
 import EditVehicleForm from "@/components/dashboard/EditVehicleForm";
 import PromotionModal from "@/components/dashboard/PromotionModal";
-import { compressImage } from "@/utils/imageCompressor";
 import Link from "next/link";
+import DealershipSelector from "@/components/dashboard/DealershipSelector";
 
 export default function DealerDashboard() {
     const { user } = useUser();
-    const { organization, isLoaded } = useOrganization();
-    const { userMemberships, isLoaded: isMembershipsLoaded, setActive } = useOrganizationList({
-        userMemberships: {
-            infinite: true,
-        },
-    });
-    const [showCreateOrg, setShowCreateOrg] = useState(false);
+    const { organization } = useOrganization();
+    
     const [showAddVehicle, setShowAddVehicle] = useState(false);
     const [showFrozenModal, setShowFrozenModal] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<any>(null);
     const [promotingVehicle, setPromotingVehicle] = useState<any>(null);
-    const [syncError, setSyncError] = useState<string | null>(null);
     
     // Admin emails state
     const [newEmail, setNewEmail] = useState("");
@@ -38,7 +32,6 @@ export default function DealerDashboard() {
     const dealership = useQuery(api.dealerships.getByClerkOrgId, organization ? { clerkOrgId: organization.id } : "skip");
     const vehicles = useQuery(api.vehicles.getByDealerId, dealership && dealership !== null ? { dealerId: dealership._id } : "skip");
     const isGlobalAdmin = useQuery(api.dealerships.checkGlobalAdmin);
-    const createDealership = useMutation(api.dealerships.create);
     const updateAuthorizedEmails = useMutation(api.dealerships.updateAuthorizedEmails);
     const updatePhone = useMutation(api.dealerships.updatePhone);
     const updateVehicle = useMutation(api.vehicles.update);
@@ -60,34 +53,7 @@ export default function DealerDashboard() {
         return `${hours}h left`;
     };
 
-    // Auto-select the organization if the user has exactly 1 and none is selected currently.
-    useEffect(() => {
-        if (isMembershipsLoaded && !organization && userMemberships.data?.length === 1) {
-            setActive({ organization: userMemberships.data[0].organization.id });
-        }
-    }, [isMembershipsLoaded, organization, userMemberships, setActive]);
-
-    useEffect(() => {
-        if (organization && dealership === null) {
-            const syncDealership = async () => {
-                try {
-                    await createDealership({
-                        name: organization.name,
-                        location: "Gaborone, Botswana",
-                        slug: organization.slug || organization.id,
-                        clerkOrgId: organization.id,
-                        logoUrl: organization.imageUrl,
-                    });
-                } catch (error: any) {
-                    console.error("Dealership sync failed", error);
-                    setSyncError(error?.message || "An error occurred while creating your dealership.");
-                }
-            };
-            syncDealership();
-        }
-    }, [organization, dealership, createDealership]);
-
-    if (!isLoaded || isGlobalAdmin === undefined) {
+    if (!organization || !dealership) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
                 <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
@@ -95,64 +61,7 @@ export default function DealerDashboard() {
         );
     }
 
-    if (!organization) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-                <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl border border-slate-100 max-w-md w-full space-y-6">
-                    <div className="w-20 h-20 bg-primary-50 rounded-3xl flex items-center justify-center mx-auto">
-                        <Building2 className="text-primary-600" size={40} />
-                    </div>
-
-                    <div className="space-y-2">
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Dealer Setup Required</h2>
-                        <p className="text-slate-500 font-medium text-sm">
-                            To list cars on CarPlace, you must be invited to a Dealership organization by an administrator.
-                        </p>
-                    </div>
-
-                    <div className="pt-4 flex flex-col gap-6">
-                        {/* Clerk's OrganizationList handles showing and accepting invitations, plus creating new orgs */}
-                        <OrganizationList
-                            hidePersonal={true}
-                            afterSelectOrganizationUrl="/dashboard"
-                            afterCreateOrganizationUrl="/dashboard"
-                            appearance={{
-                                elements: {
-                                    rootBox: "w-full flex justify-center",
-                                }
-                            }}
-                        />
-
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest pt-2">
-                            To view your new dealership, please accept any pending invites or create a new one above.
-                        </p>
-                    </div>
-                </div>
-                <MobileNav />
-            </div>
-        );
-    }
-
-    if (dealership === undefined || dealership === null) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
-                <Loader2 className="w-12 h-12 text-primary-500 animate-spin mb-4 mx-auto" />
-                <h2 className="text-xl font-bold text-slate-900">Setting up your dealership...</h2>
-                {syncError ? (
-                    <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-2xl max-w-md">
-                        <p className="text-rose-700 font-bold text-sm">Sync Error</p>
-                        <p className="text-rose-600 mt-1 text-xs">{syncError}</p>
-                        <button onClick={() => window.location.reload()} className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold">Refresh Page</button>
-                    </div>
-                ) : (
-                    <p className="text-slate-500 mt-2">Syncing your organization profile.</p>
-                )}
-            </div>
-        );
-    }
-
     const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
-    const isAuthorizedDealer = !dealership.authorizedEmails || dealership.authorizedEmails.includes(userEmail);
 
     const handleAddEmail = async () => {
         if (!newEmail || !newEmail.includes("@")) {
@@ -216,40 +125,6 @@ export default function DealerDashboard() {
         }
     };
 
-    if (!isGlobalAdmin && !isAuthorizedDealer) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-                <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl border border-slate-100 max-w-md w-full space-y-6 animate-in zoom-in-95 duration-200">
-                    <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto text-rose-500">
-                        <Shield size={40} />
-                    </div>
-                    <div className="space-y-2">
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Access Denied</h2>
-                        <p className="text-slate-500 font-medium text-sm">
-                            Your account belongs to this organization, but your email address is not registered in the dealership&apos;s authorized admin list.
-                        </p>
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-2xl text-left border border-slate-100 space-y-2">
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none">Authorized Administrators:</p>
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                            {dealership.authorizedEmails?.map((email: string) => (
-                                <span key={email} className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600">
-                                    {email}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="pt-2 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        Signed in as: <span className="lowercase text-slate-600">{userEmail || "Guest"}</span>
-                    </div>
-                </div>
-                <MobileNav />
-            </div>
-        );
-    }
-
-    // HIGH-05 fix: compute real stats from live vehicle data instead of
-    // displaying hardcoded placeholder values that misrepresent actual inventory.
     const vehicleList = vehicles ?? [];
     const activeListings = vehicleList.filter((v: any) => v.status === "available").length;
     const soldListings   = vehicleList.filter((v: any) => v.status === "sold").length;
@@ -274,12 +149,9 @@ export default function DealerDashboard() {
                 <div className="max-w-7xl mx-auto">
                     {/* Top row: title + user actions */}
                     <div className="flex justify-between items-center">
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Dealer Portal</h1>
-                            <p className="text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5 mt-0.5">
-                                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                                {organization.name}
-                            </p>
+                        <div className="flex flex-col gap-1">
+                            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">Dealer Portal</h1>
+                            <DealershipSelector />
                         </div>
                         <div className="flex items-center gap-2 sm:gap-3">
                             {/* Billing & Analytics collapsed to icons on very small screens */}

@@ -9,6 +9,7 @@ import {
     ChevronLeft, CreditCard, AlertTriangle, CheckCircle2,
     Clock, FileText, TrendingUp, Wallet, CalendarDays, ExternalLink, Loader2
 } from "lucide-react";
+import DealershipSelector from "@/components/dashboard/DealershipSelector";
 
 function StatusBadge({ status }: { status: "pending" | "paid" | "overdue" }) {
     const styles = {
@@ -89,9 +90,13 @@ export default function DealerBillingPage() {
                             <ChevronLeft size={18} />
                             <span className="hidden xs:inline">Back</span>
                         </button>
-                        <div>
-                            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Billing &amp; Payments</h1>
-                            <p className="text-xs text-slate-400 font-medium">{organization.name}</p>
+                        <div className="flex items-center gap-3 border-l border-slate-200 pl-3">
+                            <div>
+                                <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-none">Billing &amp; Payments</h1>
+                                <div className="mt-0.5">
+                                    <DealershipSelector />
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <NotificationCenter recipientId={dealership._id} />

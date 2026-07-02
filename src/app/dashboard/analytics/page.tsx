@@ -6,6 +6,7 @@ import { useOrganization, useUser } from "@clerk/nextjs";
 import MobileNav from "@/components/navigation/MobileNav";
 import { Loader2, TrendingUp, BarChart, Eye, Heart, Share2, MousePointerClick, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import DealershipSelector from "@/components/dashboard/DealershipSelector";
 
 export default function AnalyticsDashboard() {
     const { isLoaded } = useUser();
@@ -73,11 +74,15 @@ export default function AnalyticsDashboard() {
                     >
                         <ArrowLeft className="w-5 h-5 text-slate-600" />
                     </Link>
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                            <BarChart className="text-primary-500 w-6 h-6 sm:w-7 sm:h-7" /> Listing Analytics
-                        </h1>
-                        <p className="text-sm text-slate-500 font-medium mt-0.5">Performance metrics for {dealership.name}</p>
+                    <div className="flex items-center gap-3 border-l border-slate-200 pl-3">
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2 leading-none">
+                                <BarChart className="text-primary-500 w-6 h-6 sm:w-7 sm:h-7" /> Listing Analytics
+                            </h1>
+                            <div className="mt-0.5">
+                                <DealershipSelector />
+                            </div>
+                        </div>
                     </div>
                 </div>
 

@@ -231,3 +231,110 @@ export const updatePhone = mutation({
         });
     },
 });
+
+export const remove = mutation({
+    args: { id: v.id("dealerships") },
+    handler: async (ctx, args) => {
+        await requireGlobalAdmin(ctx);
+
+        const dealership = await ctx.db.get(args.id);
+        if (!dealership) {
+            throw new ConvexError("Dealership not found.");
+        }
+
+        // 1. Find and delete all vehicles and their storage images
+        const vehicles = await ctx.db
+            .query("vehicles")
+            .withIndex("by_dealer", (q) => q.eq("dealerId", args.id))
+            .collect();
+
+        for (const vehicle of vehicles) {
+            if (vehicle.images) {
+                for (const storageId of vehicle.images) {
+                    try {
+                        await ctx.storage.delete(storageId);
+                    } catch (err) {
+                        console.error(`Failed to delete storage image ${storageId}:`, err);
+                    }
+                }
+            }
+            // Delete reports for this vehicle
+            const vehicleReports = await ctx.db
+                .query("reports")
+                .withIndex("by_vehicle", (q) => q.eq("vehicleId", vehicle._id))
+                .collect();
+            for (const report of vehicleReports) {
+                await ctx.db.delete(report._id);
+            }
+
+            // Delete featured applications for this vehicle
+            const vehicleFeatured = await ctx.db
+                .query("featuredApplications")
+                .withIndex("by_vehicle", (q) => q.eq("vehicleId", vehicle._id))
+                .collect();
+            for (const app of vehicleFeatured) {
+                await ctx.db.delete(app._id);
+            }
+
+            // Delete listing analytics for this vehicle
+            const vehicleAnalytics = await ctx.db
+                .query("listingAnalytics")
+                .withIndex("by_vehicle", (q) => q.eq("vehicleId", vehicle._id))
+                .collect();
+            for (const analytics of vehicleAnalytics) {
+                await ctx.db.delete(analytics._id);
+            }
+
+            // Finally delete the vehicle itself
+            await ctx.db.delete(vehicle._id);
+        }
+
+        // 2. Delete all invoices for the dealership
+        const invoices = await ctx.db
+            .query("invoices")
+            .withIndex("by_dealer", (q) => q.eq("dealerId", args.id))
+            .collect();
+        for (const invoice of invoices) {
+            await ctx.db.delete(invoice._id);
+        }
+
+        // 3. Delete all notifications for the dealership
+        const notifications = await ctx.db
+            .query("notifications")
+            .withIndex("by_recipient", (q) => q.eq("recipientId", args.id))
+            .collect();
+        for (const notification of notifications) {
+            await ctx.db.delete(notification._id);
+        }
+
+        // 4. Delete reports associated directly with the dealer (if any)
+        const reports = await ctx.db
+            .query("reports")
+            .withIndex("by_dealer", (q) => q.eq("dealerId", args.id))
+            .collect();
+        for (const report of reports) {
+            await ctx.db.delete(report._id);
+        }
+
+        // 5. Delete featured applications associated with the dealer (redundant but safe)
+        const featuredApps = await ctx.db
+            .query("featuredApplications")
+            .withIndex("by_dealer", (q) => q.eq("dealerId", args.id))
+            .collect();
+        for (const app of featuredApps) {
+            await ctx.db.delete(app._id);
+        }
+
+        // 6. Delete listing analytics associated with the dealer (redundant but safe)
+        const analytics = await ctx.db
+            .query("listingAnalytics")
+            .withIndex("by_dealer", (q) => q.eq("dealerId", args.id))
+            .collect();
+        for (const analytic of analytics) {
+            await ctx.db.delete(analytic._id);
+        }
+
+        // 7. Delete the dealership itself
+        await ctx.db.delete(args.id);
+    },
+});

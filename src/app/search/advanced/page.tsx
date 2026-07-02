@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { api } from "../../../../convex/_generated/api";
 import MobileNav from "@/components/navigation/MobileNav";
 import CarCard from "@/components/ui/CarCard";
 import { useSearchHistory, SearchEntry } from "@/hooks/useSearchHistory";
@@ -11,7 +9,7 @@ import { motion } from "framer-motion";
 import {
     ChevronRight, ChevronLeft, Search, Sparkles, Car,
     Gauge, Fuel, Settings2, Palette, BadgeDollarSign, CalendarRange,
-    X, Clock, Trash2, ArrowRight
+    X, Clock, Trash2, ArrowRight, MapPin,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,7 +34,7 @@ const EMPTY: Filters = {
 
 // ─── Option sets ─────────────────────────────────────────────────────────────
 const CATEGORIES = [
-    { value: "", label: "Any" },
+    { value: "",          label: "Any" },
     { value: "suv",       label: "SUV" },
     { value: "sedan",     label: "Sedan" },
     { value: "hatchback", label: "Hatchback" },
@@ -48,7 +46,7 @@ const CATEGORIES = [
 ];
 
 const FUELS = [
-    { value: "", label: "Any" },
+    { value: "",         label: "Any" },
     { value: "petrol",   label: "⛽ Petrol" },
     { value: "diesel",   label: "🛢 Diesel" },
     { value: "electric", label: "⚡ Electric" },
@@ -56,13 +54,13 @@ const FUELS = [
 ];
 
 const TRANSMISSIONS = [
-    { value: "", label: "Any" },
-    { value: "automatic", label: "Automatic" },
-    { value: "manual",    label: "Manual" },
+    { value: "",           label: "Any" },
+    { value: "automatic",  label: "Automatic" },
+    { value: "manual",     label: "Manual" },
 ];
 
 const COLORS = [
-    { value: "", label: "Any" },
+    { value: "",       label: "Any" },
     { value: "white",  label: "⬜ White" },
     { value: "black",  label: "⬛ Black" },
     { value: "silver", label: "🩶 Silver" },
@@ -101,8 +99,8 @@ function PillGroup({ options, value, onChange }: {
                     onClick={() => onChange(opt.value)}
                     className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
                         value === opt.value
-                            ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200"
-                            : "bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-600"
+                            ? "bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50"
                     }`}
                 >
                     {opt.label}
@@ -135,40 +133,64 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
         makeModel:    filters.makeModel    || undefined,
     };
 
-    const vehicles = useQuery(api.vehicles.advancedSearch, args);
+    const [vehicles, setVehicles] = useState<any[] | undefined>(undefined);
+    const [loading, setLoading] = useState(true);
 
-    if (vehicles === undefined) {
+    useEffect(() => {
+        let active = true;
+        setLoading(true);
+
+        const params = new URLSearchParams();
+        Object.entries(args).forEach(([k, v]) => {
+            if (v !== undefined) params.append(k, String(v));
+        });
+
+        fetch(`/api/search/advanced?${params.toString()}`)
+            .then(res => res.json())
+            .then(data => {
+                if (active) {
+                    setVehicles(Array.isArray(data) ? data : []);
+                    setLoading(false);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                if (active) {
+                    setVehicles([]);
+                    setLoading(false);
+                }
+            });
+
+        return () => { active = false; };
+    }, [JSON.stringify(args)]);
+
+    if (loading || vehicles === undefined) {
         return (
-            <div className="w-full max-w-2xl mx-auto bg-slate-950 text-white rounded-3xl overflow-hidden border border-slate-800 shadow-2xl min-h-[350px] p-10 flex flex-col items-center justify-center text-center space-y-6">
-                {/* Glowing animated icon */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm min-h-[340px] flex flex-col items-center justify-center text-center space-y-6 p-10">
                 <div className="relative w-20 h-20 flex items-center justify-center">
-                    <motion.div 
-                        className="absolute inset-0 bg-primary-500/20 rounded-full blur-xl"
+                    <motion.div
+                        className="absolute inset-0 bg-primary-500/15 rounded-full blur-xl"
                         animate={{ scale: [1, 1.3, 1] }}
                         transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
                     />
-                    <div className="relative w-16 h-16 bg-gradient-to-tr from-primary-600 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg border border-white/10 text-white">
+                    <div className="relative w-16 h-16 bg-gradient-to-tr from-primary-600 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg text-white">
                         <Sparkles className="animate-pulse" size={32} />
                     </div>
                 </div>
-                
-                {/* Pulsing Status Text */}
                 <div className="space-y-2 max-w-sm">
-                    <h3 className="text-xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-white/70">
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
                         Analyzing Match Criteria...
                     </h3>
-                    <p className="text-sm font-medium text-slate-400">
-                        Searching dealerships for matching cars and optimizing your personalized deal ranks.
+                    <p className="text-sm font-medium text-slate-500">
+                        Searching dealerships for matching cars and ranking the best deals for you.
                     </p>
                 </div>
-
-                {/* Animated scanning status indicator */}
-                <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-4 py-1.5">
+                <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-full px-4 py-1.5">
                     <span className="flex h-2 w-2 relative">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
-                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600">
                         Scanning database live
                     </span>
                 </div>
@@ -177,41 +199,38 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
     }
 
     return (
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h2 className="text-xl font-black text-slate-900">
-                        {vehicles.length} Deals Found
-                    </h2>
-                    <p className="text-sm text-slate-500 font-medium">Ranked by best match to your preferences</p>
+        <div className="space-y-6">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-xl font-black text-slate-900">
+                            {vehicles.length} {vehicles.length === 1 ? "Deal" : "Deals"} Found
+                        </h2>
+                        <p className="text-sm text-slate-500 font-medium mt-0.5">Ranked by best match to your preferences</p>
+                    </div>
+                    <button
+                        onClick={onReset}
+                        className="flex items-center gap-2 text-sm font-bold text-primary-600 hover:text-primary-700 border border-primary-200 rounded-xl px-4 py-2 hover:bg-primary-50 transition-all"
+                    >
+                        <X size={14} /> New Search
+                    </button>
                 </div>
-                <button
-                    onClick={onReset}
-                    className="flex items-center gap-2 text-sm font-bold text-primary-600 hover:text-primary-700 border border-primary-200 rounded-xl px-4 py-2 hover:bg-primary-50 transition-all"
-                >
-                    <X size={14} /> New Search
-                </button>
             </div>
 
             {vehicles.length === 0 ? (
-                <div className="flex flex-col items-center py-12 px-6 text-center space-y-6">
-                    {/* Animated icon */}
-                    <div className="relative w-24 h-24 flex items-center justify-center">
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center py-14 px-6 text-center space-y-6">
+                    <div className="relative w-20 h-20 flex items-center justify-center">
                         <div className="absolute inset-0 bg-rose-500/10 rounded-full blur-xl animate-pulse" />
-                        <div className="relative w-20 h-20 bg-gradient-to-br from-rose-500 to-pink-600 rounded-3xl flex items-center justify-center shadow-xl border border-rose-400/20">
-                            <Car size={36} className="text-white" />
+                        <div className="relative w-16 h-16 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-xl">
+                            <Car size={30} className="text-white" />
                         </div>
                     </div>
-
-                    {/* Title & message */}
                     <div className="space-y-2 max-w-sm">
-                        <h3 className="text-2xl font-black text-slate-900">No exact matches found</h3>
+                        <h3 className="text-xl font-black text-slate-900">No exact matches found</h3>
                         <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                            Your criteria are very specific — try widening your budget or relaxing one or two filters to unlock more results.
+                            Your criteria are very specific — try widening your budget or relaxing one or two filters.
                         </p>
                     </div>
-
-                    {/* Dynamic tip cards */}
                     <div className="w-full max-w-sm grid grid-cols-1 gap-2 text-left">
                         {[
                             { icon: "💰", tip: "Increase your max budget by 10–20%." },
@@ -224,13 +243,10 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
                             </div>
                         ))}
                     </div>
-
-                    {/* CTAs */}
                     <div className="flex gap-3 flex-wrap justify-center">
                         <button
                             onClick={onReset}
-                            className="flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm text-white shadow-lg transition-all cursor-pointer"
-                            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+                            className="flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm text-white shadow-lg transition-all cursor-pointer bg-primary-600 hover:bg-primary-700"
                         >
                             <X size={16} /> Adjust & Retry
                         </button>
@@ -244,7 +260,7 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
                 </div>
             ) : (
                 <>
-                    <div className="flex gap-3 mb-6 overflow-x-auto no-scrollbar">
+                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                         {[
                             { label: "Best Match",    color: "bg-emerald-500" },
                             { label: "Good Match",    color: "bg-amber-400" },
@@ -256,8 +272,7 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
                             </div>
                         ))}
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {vehicles.map((car: any) => (
                             <div key={car._id} className="relative">
                                 <div className={`absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-lg ${
@@ -276,50 +291,49 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
     );
 }
 
-// ─── Recent Searches sidebar ─────────────────────────────────────────────────
+// ─── Recent Searches ──────────────────────────────────────────────────────────
 function RecentSearches({ onRerun }: { onRerun: (e: SearchEntry) => void }) {
     const { history, remove, clear } = useSearchHistory();
-
     if (history.length === 0) return null;
 
     return (
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5 mb-6">
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-5 mb-5">
             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-white">
-                    <Clock size={14} className="opacity-60" />
-                    <span className="text-sm font-black uppercase tracking-widest opacity-70">Recent Searches</span>
+                <div className="flex items-center gap-2 text-slate-700">
+                    <Clock size={14} className="text-slate-400" />
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-400">Recent Searches</span>
                 </div>
                 <button
                     onClick={() => clear()}
-                    className="text-xs text-white/40 hover:text-white/70 font-bold transition-colors flex items-center gap-1"
+                    className="text-xs text-slate-400 hover:text-rose-500 font-bold transition-colors flex items-center gap-1"
                 >
                     <Trash2 size={12} /> Clear all
                 </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
                 {history.slice(0, 5).map((entry, i) => (
                     <div
                         key={entry._id ?? i}
-                        className="flex items-center justify-between group bg-white/5 hover:bg-white/10 rounded-xl px-4 py-2.5 transition-all"
+                        className="flex items-center justify-between group bg-slate-50 hover:bg-primary-50 border border-slate-100 hover:border-primary-200 rounded-xl px-4 py-2.5 transition-all"
                     >
                         <button
                             onClick={() => onRerun(entry)}
-                            className="flex-1 text-left flex items-center gap-2 text-white/80 text-sm font-bold group-hover:text-white transition-colors"
+                            className="flex-1 text-left flex items-center gap-2 text-slate-700 text-sm font-bold group-hover:text-primary-700 transition-colors"
                         >
-                            <Search size={12} className="opacity-50 shrink-0" />
+                            <Search size={12} className="text-slate-400 shrink-0" />
                             <span className="truncate">{entry.label}</span>
                         </button>
                         <div className="flex items-center gap-1 shrink-0 ml-2">
                             <button
                                 onClick={() => onRerun(entry)}
-                                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all"
+                                className="p-1.5 rounded-lg bg-slate-200 hover:bg-primary-100 text-slate-600 hover:text-primary-700 transition-all"
                                 title="Re-run this search"
                             >
                                 <ArrowRight size={12} />
                             </button>
                             <button
                                 onClick={() => remove(entry)}
-                                className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/70 transition-all"
+                                className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-300 hover:text-rose-500 transition-all"
                                 title="Remove"
                             >
                                 <X size={12} />
@@ -388,76 +402,144 @@ export default function AdvancedSearchPage() {
     }
 
     return (
-        <main className="min-h-screen pb-32" style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)" }}>
+        <main className="min-h-screen pb-32 bg-slate-50">
 
-            {/* Back Button */}
-            <div className="max-w-2xl mx-auto px-4 pt-6">
-                <button
-                    onClick={() => router.back()}
-                    className="inline-flex items-center gap-2 text-sm font-bold text-white/80 hover:text-white bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-2 transition-all cursor-pointer shadow-sm"
-                >
-                    <ChevronLeft size={16} /> Back to Search
-                </button>
-            </div>
-
-            {/* ── Hero ─────────────────────────────────────────────── */}
-            <div className="relative overflow-hidden px-4 pt-12 pb-8 text-white">
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-4 left-8 w-64 h-64 bg-primary-500 rounded-full blur-3xl" />
-                    <div className="absolute bottom-0 right-8 w-48 h-48 bg-violet-500 rounded-full blur-3xl" />
-                </div>
-                <div className="relative max-w-2xl mx-auto text-center">
-                    <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest mb-4">
-                        <Sparkles size={12} /> Smart Deal Finder
+            {/* ── Header ──────────────────────────────────────────────── */}
+            <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
+                <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
+                    <button
+                        onClick={() => router.back()}
+                        className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">
+                                CarPlace<span className="text-primary-600">.</span>
+                            </h1>
+                            <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-primary-600 to-violet-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest">
+                                <Sparkles size={9} /> AI Deal Finder
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                            <MapPin size={10} className="text-primary-400" /> Gaborone, Botswana
+                        </p>
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-black mb-2">Find Your Perfect Match</h1>
-                    <p className="text-slate-300 text-sm font-medium">
-                        Tell us your budget & preferences — we'll rank the best deals for you.
-                    </p>
+                    {/* Step indicator mini */}
+                    <div className="flex items-center gap-1.5">
+                        {STEPS.map((s, i) => (
+                            <div
+                                key={s.id}
+                                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                                    i === step ? "bg-primary-600 w-5" :
+                                    i < step   ? "bg-emerald-500" :
+                                                 "bg-slate-200"
+                                }`}
+                            />
+                        ))}
+                    </div>
                 </div>
-            </div>
+            </header>
 
-            {/* ── Steps ────────────────────────────────────────────── */}
-            <div className="max-w-2xl mx-auto px-4 mb-6">
-                <div className="flex items-center gap-2">
-                    {STEPS.map((s, i) => {
-                        const Icon = s.icon;
-                        const active = i === step;
-                        const done   = i < step;
-                        return (
-                            <div key={s.id} className="flex items-center gap-2 flex-1 last:flex-none">
-                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                                    active ? "bg-primary-500 text-white" :
-                                    done   ? "bg-emerald-500 text-white" :
-                                             "bg-white/10 text-white/40"
-                                }`}>
-                                    <Icon size={12} />
-                                    <span className="hidden sm:block">{s.label}</span>
+            <div className="max-w-3xl mx-auto px-4 pt-6 space-y-5">
+
+                {/* ── AI accent banner ─────────────────────────────────── */}
+                {!submitted && (
+                    <div
+                        className="relative overflow-hidden rounded-3xl px-6 py-5 text-white"
+                        style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%)" }}
+                    >
+                        {/* glow orbs */}
+                        <span className="absolute -top-8 -left-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+                        <span className="absolute -bottom-8 -right-8 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
+                        <div className="relative flex items-center justify-between gap-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="flex h-2 w-2 relative shrink-0">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                                    </span>
+                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Smart Deal Finder · AI Powered</p>
                                 </div>
-                                {i < STEPS.length - 1 && (
-                                    <div className={`flex-1 h-0.5 rounded-full transition-all ${done ? "bg-emerald-500" : "bg-white/10"}`} />
-                                )}
+                                <h2 className="text-xl font-black leading-snug">Find Your Perfect Match</h2>
+                                <p className="text-sm text-white/70 font-medium">
+                                    Tell us your budget & preferences — we rank the best deals from every dealership.
+                                </p>
                             </div>
-                        );
-                    })}
-                </div>
-            </div>
+                            <div className="shrink-0 w-14 h-14 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl flex items-center justify-center">
+                                <Sparkles size={26} className="text-white" />
+                            </div>
+                        </div>
+                    </div>
+                )}
 
-            <div className="max-w-2xl mx-auto px-4">
+                {/* ── Steps progress bar ────────────────────────────────── */}
+                {!submitted && (
+                    <div className="flex items-center gap-2">
+                        {STEPS.map((s, i) => {
+                            const Icon = s.icon;
+                            const active = i === step;
+                            const done   = i < step;
+                            return (
+                                <div key={s.id} className="flex items-center gap-2 flex-1 last:flex-none">
+                                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                        active ? "bg-primary-600 text-white shadow-md shadow-primary-100" :
+                                        done   ? "bg-emerald-500 text-white" :
+                                                 "bg-slate-200 text-slate-400"
+                                    }`}>
+                                        <Icon size={12} />
+                                        <span className="hidden sm:block">{s.label}</span>
+                                    </div>
+                                    {i < STEPS.length - 1 && (
+                                        <div className={`flex-1 h-0.5 rounded-full transition-all ${done ? "bg-emerald-400" : "bg-slate-200"}`} />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
-                {/* ── Recent searches (shown before submitting) ──── */}
+                {/* ── Recent searches ────────────────────────────────────── */}
                 {!submitted && <RecentSearches onRerun={handleRerun} />}
 
+                {/* ── Applied filter chips ───────────────────────────────── */}
+                {!submitted && (filters.budgetMax !== "" || filters.category || filters.fuelType || filters.transmission) && (
+                    <div className="flex flex-wrap gap-2">
+                        {filters.budgetMax !== "" && (
+                            <span className="bg-primary-50 text-primary-700 text-xs font-bold px-3 py-1 rounded-full border border-primary-100">
+                                Up to P{Number(filters.budgetMax).toLocaleString()}
+                            </span>
+                        )}
+                        {filters.category && (
+                            <span className="bg-primary-50 text-primary-700 text-xs font-bold px-3 py-1 rounded-full border border-primary-100">
+                                {CATEGORIES.find(c => c.value === filters.category)?.label}
+                            </span>
+                        )}
+                        {filters.fuelType && (
+                            <span className="bg-primary-50 text-primary-700 text-xs font-bold px-3 py-1 rounded-full border border-primary-100">
+                                {filters.fuelType}
+                            </span>
+                        )}
+                        {filters.transmission && (
+                            <span className="bg-primary-50 text-primary-700 text-xs font-bold px-3 py-1 rounded-full border border-primary-100">
+                                {filters.transmission}
+                            </span>
+                        )}
+                    </div>
+                )}
+
+                {/* ── Form / Results ─────────────────────────────────────── */}
                 {!submitted ? (
-                    <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+                    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
                         {/* Step 0 — Budget */}
                         {step === 0 && (
-                            <div className="p-8 space-y-6">
+                            <div className="p-6 sm:p-8 space-y-6">
                                 <div>
                                     <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
                                         <BadgeDollarSign className="text-primary-600" size={26} />
-                                        What's your budget?
+                                        What&apos;s your budget?
                                     </h2>
                                     <p className="text-slate-500 text-sm mt-1">Set a price range in Pula (BWP)</p>
                                 </div>
@@ -466,7 +548,7 @@ export default function AdvancedSearchPage() {
                                     <div>
                                         <label className="block text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1.5">Minimum (BWP)</label>
                                         <input type="number" placeholder="e.g. 50,000"
-                                            className="w-full border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                            className="w-full border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                                             value={filters.budgetMin}
                                             onChange={(e) => set("budgetMin", e.target.value === "" ? "" : Number(e.target.value))}
                                         />
@@ -474,7 +556,7 @@ export default function AdvancedSearchPage() {
                                     <div>
                                         <label className="block text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1.5">Maximum (BWP)</label>
                                         <input type="number" placeholder="e.g. 250,000"
-                                            className="w-full border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                            className="w-full border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                                             value={filters.budgetMax}
                                             onChange={(e) => set("budgetMax", e.target.value === "" ? "" : Number(e.target.value))}
                                         />
@@ -495,8 +577,8 @@ export default function AdvancedSearchPage() {
                                                 onClick={() => { set("budgetMin", chip.min); set("budgetMax", chip.max); }}
                                                 className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
                                                     filters.budgetMin === chip.min && filters.budgetMax === chip.max
-                                                        ? "bg-primary-600 text-white border-primary-600"
-                                                        : "bg-slate-50 text-slate-600 border-slate-200 hover:border-primary-300"
+                                                        ? "bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100"
+                                                        : "bg-slate-50 text-slate-600 border-slate-200 hover:border-primary-300 hover:bg-primary-50"
                                                 }`}
                                             >
                                                 {chip.label}
@@ -511,12 +593,12 @@ export default function AdvancedSearchPage() {
                                     </label>
                                     <div className="grid grid-cols-2 gap-4">
                                         <input type="number" placeholder="From (e.g. 2015)" min={1990} max={currentYear}
-                                            className="border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                            className="border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                                             value={filters.yearMin}
                                             onChange={(e) => set("yearMin", e.target.value === "" ? "" : Number(e.target.value))}
                                         />
                                         <input type="number" placeholder={`To (e.g. ${currentYear})`} min={1990} max={currentYear + 1}
-                                            className="border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                            className="border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                                             value={filters.yearMax}
                                             onChange={(e) => set("yearMax", e.target.value === "" ? "" : Number(e.target.value))}
                                         />
@@ -527,7 +609,7 @@ export default function AdvancedSearchPage() {
 
                         {/* Step 1 — Vehicle */}
                         {step === 1 && (
-                            <div className="p-8 space-y-6">
+                            <div className="p-6 sm:p-8 space-y-6">
                                 <div>
                                     <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
                                         <Car className="text-primary-600" size={26} />
@@ -544,7 +626,7 @@ export default function AdvancedSearchPage() {
                                     <div className="relative">
                                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                         <input type="text" placeholder="e.g. Toyota, BMW 3 Series, Polo…"
-                                            className="w-full border border-slate-200 rounded-xl py-3 pl-9 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                            className="w-full border border-slate-200 rounded-xl py-3 pl-9 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                                             value={filters.makeModel}
                                             onChange={(e) => set("makeModel", e.target.value)}
                                         />
@@ -566,8 +648,8 @@ export default function AdvancedSearchPage() {
                                                 onClick={() => set("mileageMax", chip.val)}
                                                 className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
                                                     filters.mileageMax === chip.val
-                                                        ? "bg-primary-600 text-white border-primary-600"
-                                                        : "bg-slate-50 text-slate-600 border-slate-200 hover:border-primary-300"
+                                                        ? "bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100"
+                                                        : "bg-slate-50 text-slate-600 border-slate-200 hover:border-primary-300 hover:bg-primary-50"
                                                 }`}
                                             >
                                                 {chip.label}
@@ -580,7 +662,7 @@ export default function AdvancedSearchPage() {
 
                         {/* Step 2 — Details */}
                         {step === 2 && (
-                            <div className="p-8 space-y-6">
+                            <div className="p-6 sm:p-8 space-y-6">
                                 <div>
                                     <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
                                         <Settings2 className="text-primary-600" size={26} />
@@ -608,7 +690,7 @@ export default function AdvancedSearchPage() {
                         )}
 
                         {/* Navigation */}
-                        <div className="px-8 pb-8 flex justify-between gap-4">
+                        <div className="px-6 sm:px-8 pb-6 sm:pb-8 flex justify-between gap-4 border-t border-slate-100 pt-5">
                             {step > 0 ? (
                                 <button onClick={() => setStep(step - 1)}
                                     className="flex items-center gap-2 px-6 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all cursor-pointer">
@@ -618,7 +700,7 @@ export default function AdvancedSearchPage() {
 
                             {step < 2 ? (
                                 <button onClick={() => setStep(step + 1)}
-                                    className="flex items-center gap-2 px-8 py-3 rounded-2xl bg-primary-600 text-white font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 ml-auto cursor-pointer">
+                                    className="flex items-center gap-2 px-8 py-3 rounded-2xl bg-primary-600 text-white font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-100 ml-auto cursor-pointer">
                                     Next <ChevronRight size={18} />
                                 </button>
                             ) : (
@@ -632,32 +714,6 @@ export default function AdvancedSearchPage() {
                     </div>
                 ) : (
                     <Results filters={filters} onReset={handleReset} />
-                )}
-
-                {/* Applied filter chips */}
-                {!submitted && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {filters.budgetMax !== "" && (
-                            <span className="bg-white/10 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
-                                Up to P{Number(filters.budgetMax).toLocaleString()}
-                            </span>
-                        )}
-                        {filters.category && (
-                            <span className="bg-white/10 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
-                                {CATEGORIES.find(c => c.value === filters.category)?.label}
-                            </span>
-                        )}
-                        {filters.fuelType && (
-                            <span className="bg-white/10 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
-                                {filters.fuelType}
-                            </span>
-                        )}
-                        {filters.transmission && (
-                            <span className="bg-white/10 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
-                                {filters.transmission}
-                            </span>
-                        )}
-                    </div>
                 )}
             </div>
 

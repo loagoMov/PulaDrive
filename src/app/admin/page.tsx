@@ -150,6 +150,7 @@ export default function GlobalAdminDashboard() {
     const approveFeatured        = useMutation(api.featured.approve);
     const rejectFeatured         = useMutation(api.featured.reject);
     const revokeFeatured         = useMutation(api.featured.revoke);
+    const deleteDealership       = useMutation(api.dealerships.remove);
 
     const [selectedDealerId, setSelectedDealerId] = useState<string | null>(null);
     const [editingRatingId,  setEditingRatingId]  = useState<string | null>(null);
@@ -249,6 +250,19 @@ export default function GlobalAdminDashboard() {
             });
         } catch (err) {
             console.error(err);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDeleteDealership = async (id: any) => {
+        setIsSubmitting(true);
+        try {
+            await deleteDealership({ id });
+            setManagingEmailsId(null);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to delete dealership: " + (err instanceof Error ? err.message : String(err)));
         } finally {
             setIsSubmitting(false);
         }
@@ -515,6 +529,33 @@ export default function GlobalAdminDashboard() {
                                         className="btn-primary flex items-center gap-1 px-4 text-xs font-bold"
                                     >
                                         <Plus size={16} /> Add Email
+                                    </button>
+                                </div>
+
+                                <div className="pt-6 mt-6 border-t border-rose-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                    <div className="space-y-0.5">
+                                        <h4 className="text-xs font-black text-rose-600 uppercase tracking-widest flex items-center gap-1.5">
+                                            🚨 Danger Zone
+                                        </h4>
+                                        <p className="text-[10px] text-slate-400 font-bold max-w-md">
+                                            Permanently delete this dealership registry. This cascades and deletes all associated listings, photos, analytics, and reports. This action is irreversible.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            const confirmName = prompt(
+                                                `To delete this dealership permanently, type its exact name:\n"${activeDealer.name}"`
+                                            );
+                                            if (confirmName === activeDealer.name) {
+                                                handleDeleteDealership(activeDealer._id);
+                                            } else if (confirmName !== null) {
+                                                alert("Dealership name did not match. Deletion aborted.");
+                                            }
+                                        }}
+                                        disabled={isSubmitting}
+                                        className="px-4 py-2.5 border border-rose-200 hover:bg-rose-50 text-rose-600 hover:text-rose-700 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                        <Trash2 size={14} /> Delete Account Fully
                                     </button>
                                 </div>
                             </div>
