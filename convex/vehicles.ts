@@ -1,4 +1,5 @@
 import { query, mutation } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 import { v, ConvexError } from "convex/values";
 import { isGlobalAdmin } from "./utils";
 import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "./rateLimit";
@@ -54,6 +55,41 @@ async function requireVehicleOwnership(ctx: any, vehicleId: any) {
 }
 
 // ─── Queries (public read — no auth needed) ──────────────────────────────────
+
+export const listPaginated = query({
+    args: {
+        status: v.optional(v.union(v.literal("available"), v.literal("reserved"), v.literal("sold"))),
+        paginationOpts: paginationOptsValidator,
+    },
+    handler: async (ctx, args) => {
+        let baseQuery = ctx.db.query("vehicles");
+        let paginatedResults;
+
+        if (args.status) {
+            const currentStatus = args.status;
+            paginatedResults = await baseQuery
+                .withIndex("by_status", (q) => q.eq("status", currentStatus))
+                .order("desc")
+                .paginate(args.paginationOpts);
+        } else {
+            paginatedResults = await baseQuery.order("desc").paginate(args.paginationOpts);
+        }
+
+        const page = await Promise.all(
+            paginatedResults.page.map(async (car) => ({
+                ...car,
+                imageUrls: (await Promise.all(
+                    car.images.map(async (id) => await ctx.storage.getUrl(id))
+                )).filter((url) => url !== null) as string[],
+            }))
+        );
+
+        return {
+            ...paginatedResults,
+            page,
+        };
+    },
+});
 
 export const list = query({
     args: {

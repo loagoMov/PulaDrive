@@ -22,7 +22,13 @@ interface Car {
     dealerId?: string;
 }
 
-export default function CarCard({ car }: { car: Car }) {
+interface CarCardProps {
+    car: Car;
+    /** Pass true for the first above-the-fold card to fix LCP */
+    priority?: boolean;
+}
+
+export default function CarCard({ car, priority = false }: CarCardProps) {
     const [showReport, setShowReport] = useState(false);
 
     const statusColors = {
@@ -43,6 +49,8 @@ export default function CarCard({ car }: { car: Car }) {
                             fill
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             className="object-cover transition-transform duration-500 group-hover:scale-110"
+                            priority={priority}
+                            loading={priority ? "eager" : "lazy"}
                         />
                         <div className="absolute top-3 left-3">
                             <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColors[car.status]}`}>

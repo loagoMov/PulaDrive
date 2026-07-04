@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import MobileNav from "@/components/navigation/MobileNav";
 import CarCard from "@/components/ui/CarCard";
@@ -22,7 +22,11 @@ export default function Home() {
     const { userId, isSignedIn } = useAuth();
     const targetId = isSignedIn ? (userId || "") : (typeof window !== "undefined" ? localStorage.getItem("puladrive_anon_id") || "" : "");
 
-    const vehicles = useQuery(api.vehicles.list, {});
+    const { results: vehicles, status: paginationStatus, loadMore } = usePaginatedQuery(
+        api.vehicles.listPaginated,
+        {},
+        { initialNumItems: 12 }
+    );
     const forYouVehicles = useQuery(api.vehicles.getForYouFeed, { targetId: targetId || undefined });
     const featuredVehicles = useQuery(api.vehicles.getFeatured);
     const { history } = useSearchHistory();
@@ -206,13 +210,30 @@ export default function Home() {
                 </div>
 
                 {activeTab === "explore" ? (
-                    !vehicles ? (
+                    paginationStatus === "LoadingFirstPage" ? (
                         <SkeletonGrid />
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {vehicles.map((car: any) => (
-                                <CarCard key={car._id} car={car} />
-                            ))}
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {vehicles.map((car: any, i: number) => (
+                                    <CarCard key={car._id} car={car} priority={i === 0} />
+                                ))}
+                            </div>
+                            {paginationStatus === "CanLoadMore" && (
+                                <div className="flex justify-center pt-4">
+                                    <button
+                                        onClick={() => loadMore(12)}
+                                        className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 hover:border-primary-500 hover:text-primary-600 rounded-full font-bold text-sm text-slate-700 shadow-sm transition-all hover:shadow-md cursor-pointer"
+                                    >
+                                        Load More Vehicles
+                                    </button>
+                                </div>
+                            )}
+                            {paginationStatus === "LoadingMore" && (
+                                <div className="flex justify-center pt-4">
+                                    <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary-600 animate-spin" />
+                                </div>
+                            )}
                         </div>
                     )
                 ) : (
@@ -261,8 +282,8 @@ export default function Home() {
                     ) : (
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {forYouVehicles.map((car: any) => (
-                                    <CarCard key={car._id} car={car} />
+                                {forYouVehicles.map((car: any, i: number) => (
+                                    <CarCard key={car._id} car={car} priority={i === 0} />
                                 ))}
                             </div>
                             <div className="flex justify-center pt-4">

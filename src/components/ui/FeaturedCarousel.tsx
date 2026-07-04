@@ -105,7 +105,7 @@ export default function FeaturedCarousel({ cars }: { cars: any[] }) {
             >
                 {displayCars.map((car, index) => (
                     <div key={`${car._id}-${index}`} className="flex-none w-[280px] sm:w-[320px]">
-                        <CarCard car={car} />
+                        <CarCard car={car} priority={index === 0} />
                     </div>
                 ))}
             </motion.div>
