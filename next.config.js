@@ -70,16 +70,16 @@ const nextConfig = {
               // MED-01 note: 'unsafe-inline' and 'unsafe-eval' are required by Next.js
               // and Clerk in their current versions. To fully remove them, migrate to
               // nonce-based CSP via Next.js middleware (tracked as future backlog item).
-              `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NODE_ENV !== "production" ? "http://localhost:* " : ""}https://*.clerk.com https://*.clerk.accounts.dev https://*.clerk.dev https://challenges.cloudflare.com`,
+              `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NODE_ENV !== "production" ? "http://localhost:* " : ""}https://*.clerk.com https://*.clerk.accounts.dev https://*.clerk.dev https://clerk.puladrive.com https://challenges.cloudflare.com`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://*.convex.cloud https://img.clerk.com https://images.clerk.dev",
               // Connections: Convex realtime + Clerk APIs + Upstash Redis REST API
               // In development, also allow localhost for RSC payload fetches and HMR
-              `connect-src 'self' ${process.env.NODE_ENV !== "production" ? "http://localhost:* ws://localhost:* http://127.0.0.1:*" : ""} https://*.convex.cloud wss://*.convex.cloud https://*.clerk.com https://*.clerk.accounts.dev https://*.clerk.dev https://clerk-telemetry.com https://pumped-egret-156334.upstash.io`,
+              `connect-src 'self' ${process.env.NODE_ENV !== "production" ? "http://localhost:* ws://localhost:* http://127.0.0.1:*" : ""} https://*.convex.cloud wss://*.convex.cloud https://*.clerk.com https://*.clerk.accounts.dev https://*.clerk.dev https://clerk.puladrive.com https://clerk-telemetry.com https://pumped-egret-156334.upstash.io`,
               "worker-src 'self' blob:",
               // Frames: Clerk OAuth popups and Cloudflare Turnstile
-              "frame-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://*.clerk.dev https://challenges.cloudflare.com",
+              "frame-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://*.clerk.dev https://clerk.puladrive.com https://challenges.cloudflare.com",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
