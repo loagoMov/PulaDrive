@@ -22,7 +22,7 @@ export default function ProfilePage() {
                     </button>
                     <div>
                         <h1 className="text-xl font-black text-slate-900 tracking-tight">Account Settings</h1>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none">Manage your CarPlace profile</p>
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none">Manage your PulaDrive profile</p>
                     </div>
                 </div>
             </header>

@@ -6,7 +6,8 @@ import { api } from "../../../convex/_generated/api";
 import { useUser, UserButton } from "@clerk/nextjs";
 import {
     Shield, Users, Building2, Star, Plus, Trash2, Check, Loader2,
-    AlertTriangle, Flag, Eye, XCircle, ChevronDown, ChevronUp, MessageSquare, Sparkles, Car, CreditCard
+    AlertTriangle, Flag, Eye, XCircle, ChevronDown, ChevronUp, MessageSquare, Sparkles, Car, CreditCard,
+    Layers, Zap, Infinity as InfinityIcon, CheckCircle2, X
 } from "lucide-react";
 import { useState, Fragment, useEffect } from "react";
 import Link from "next/link";
@@ -162,14 +163,23 @@ export default function GlobalAdminDashboard() {
     const [featuredFilter,   setFeaturedFilter]     = useState<"all" | "pending" | "waitlisted" | "approved" | "rejected" | "expired" | "revoked">("pending");
     const [expandedReport,   setExpandedReport]     = useState<string | null>(null);
     const [adminNoteInput,   setAdminNoteInput]     = useState<Record<string, string>>({});
-    const [activeTab,        setActiveTab]          = useState<"dealerships" | "reports" | "promotions">("dealerships");
+    const [activeTab,        setActiveTab]          = useState<"dealerships" | "reports" | "promotions" | "subscriptions">("dealerships");
+    const [tierUpdating,     setTierUpdating]       = useState<string | null>(null);
+    const [reqAdminNote,     setReqAdminNote]       = useState<Record<string, string>>({});
+
+    // Subscription queries + mutations
+    const upgradeRequests   = useQuery(api.subscriptions.listUpgradeRequests, isGlobalAdmin ? {} : "skip");
+    const setDealerTier     = useMutation(api.subscriptions.setDealerTier);
+    const resolveRequest    = useMutation(api.subscriptions.resolveUpgradeRequest);
+
+    const pendingUpgradeCount = upgradeRequests?.filter((r: any) => r.status === "pending").length ?? 0;
 
     useEffect(() => {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
             const tab = params.get("tab");
-            if (tab === "reports" || tab === "promotions" || tab === "dealerships") {
-                setActiveTab(tab as "dealerships" | "reports" | "promotions");
+            if (tab === "reports" || tab === "promotions" || tab === "dealerships" || tab === "subscriptions") {
+                setActiveTab(tab as "dealerships" | "reports" | "promotions" | "subscriptions");
             }
         }
     }, []);
@@ -194,7 +204,7 @@ export default function GlobalAdminDashboard() {
                     <div className="space-y-2">
                         <h2 className="text-2xl font-black text-slate-900 tracking-tight font-sans">Access Denied</h2>
                         <p className="text-slate-500 font-medium text-sm">
-                            Only registered CarPlace marketplace global administrators can access this control panel.
+                            Only registered PulaDrive marketplace global administrators can access this control panel.
                         </p>
                     </div>
                     <div className="pt-2">
@@ -275,7 +285,7 @@ export default function GlobalAdminDashboard() {
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary-600 text-white rounded-xl flex items-center justify-center font-black">
-                            CP
+                            PD
                         </div>
                         <div>
                             <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-1.5">
@@ -352,8 +362,8 @@ export default function GlobalAdminDashboard() {
                 </div>
 
                 {/* Tab nav */}
-                <div className="flex gap-2">
-                    {(["dealerships", "reports", "promotions"] as const).map((tab) => {
+                <div className="flex gap-2 flex-wrap">
+                    {(["dealerships", "reports", "promotions", "subscriptions"] as const).map((tab) => {
                         const pendingAppsCount = featuredApps?.filter((a: any) => a.status === "pending").length ?? 0;
                         return (
                             <button
@@ -365,8 +375,8 @@ export default function GlobalAdminDashboard() {
                                         : "bg-white border border-slate-200 text-slate-500 hover:border-slate-300"
                                 }`}
                             >
-                                {tab === "dealerships" ? <Building2 size={15} /> : tab === "reports" ? <Flag size={15} /> : <Sparkles className="text-amber-500 fill-amber-100" size={15} />}
-                                {tab === "dealerships" ? "Dealerships" : tab === "reports" ? "Reports" : "Promotions"}
+                                {tab === "dealerships" ? <Building2 size={15} /> : tab === "reports" ? <Flag size={15} /> : tab === "promotions" ? <Sparkles className="text-amber-500 fill-amber-100" size={15} /> : <Layers size={15} />}
+                                {tab === "dealerships" ? "Dealerships" : tab === "reports" ? "Reports" : tab === "promotions" ? "Promotions" : "Subscriptions"}
                                 {tab === "reports" && (openReports?.length ?? 0) > 0 && (
                                     <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                                         {openReports!.length}
@@ -375,6 +385,11 @@ export default function GlobalAdminDashboard() {
                                 {tab === "promotions" && pendingAppsCount > 0 && (
                                     <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
                                         {pendingAppsCount}
+                                    </span>
+                                )}
+                                {tab === "subscriptions" && pendingUpgradeCount > 0 && (
+                                    <span className="bg-indigo-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                                        {pendingUpgradeCount}
                                     </span>
                                 )}
                             </button>
@@ -396,6 +411,7 @@ export default function GlobalAdminDashboard() {
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Dealership</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Slug & Location</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Trust Rating</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Subscription</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Authorized Admins</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
                                 </tr>
@@ -452,6 +468,29 @@ export default function GlobalAdminDashboard() {
                                                     </button>
                                                 )}
                                             </td>
+                                            {/* Subscription tier column */}
+                                            <td className="px-6 py-4">
+                                                <select
+                                                    value={dealer.subscriptionTier ?? "starter"}
+                                                    disabled={tierUpdating === dealer._id}
+                                                    onChange={async (e) => {
+                                                        setTierUpdating(dealer._id);
+                                                        try {
+                                                            await setDealerTier({ dealerId: dealer._id, tier: e.target.value as any });
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        } finally {
+                                                            setTierUpdating(null);
+                                                        }
+                                                    }}
+                                                    className="text-xs font-black border border-slate-200 rounded-xl px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer disabled:opacity-50"
+                                                >
+                                                    <option value="starter">🌱 Starter — 50 slots</option>
+                                                    <option value="growth">⚡ Growth — 150 slots</option>
+                                                    <option value="unlimited">∞ Unlimited</option>
+                                                </select>
+                                                {tierUpdating === dealer._id && <Loader2 size={12} className="animate-spin inline ml-2 text-slate-400" />}
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1.5 max-w-xs">
                                                     {(dealer.authorizedEmails || []).map((email: string) => (
@@ -474,7 +513,7 @@ export default function GlobalAdminDashboard() {
                                         </tr>
                                         {selectedDealerId === dealer._id && (
                                             <tr>
-                                                <td colSpan={5} className="p-0">
+                                                <td colSpan={6} className="p-0">
                                                     <DealershipDetailRow dealerId={dealer._id} />
                                                 </td>
                                             </tr>
@@ -907,6 +946,185 @@ export default function GlobalAdminDashboard() {
                                 </div>
                             );
                         })()}
+                    </section>
+                )}
+                {/* ── Subscriptions Tab ─────────────────────────────────── */}
+                {activeTab === "subscriptions" && (
+                    <section className="space-y-8">
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                            <Layers className="text-primary-600" size={20} /> Subscription Management
+                        </h2>
+
+                        {/* Dealer tier roster */}
+                        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-slate-100">
+                                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Dealer Tier Roster</p>
+                            </div>
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Dealer</th>
+                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Current Tier</th>
+                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Change Tier</th>
+                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Extra Slot Override</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {(dealerships ?? []).map((dealer: any) => {
+                                        const tier = dealer.subscriptionTier ?? "starter";
+                                        const TIER_COLORS: Record<string, string> = {
+                                            starter: "bg-slate-100 text-slate-600",
+                                            growth: "bg-indigo-50 text-indigo-700",
+                                            unlimited: "bg-emerald-50 text-emerald-700",
+                                        };
+                                        return (
+                                            <tr key={dealer._id} className="hover:bg-slate-50">
+                                                <td className="px-6 py-3">
+                                                    <p className="font-bold text-slate-900 text-sm">{dealer.name}</p>
+                                                    <p className="text-[10px] text-slate-400">{dealer.clientCustomId ?? "—"}</p>
+                                                </td>
+                                                <td className="px-6 py-3">
+                                                    <span className={`text-[11px] font-black px-2.5 py-1 rounded-full ${TIER_COLORS[tier]}`}>
+                                                        {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-3">
+                                                    <select
+                                                        value={tier}
+                                                        disabled={tierUpdating === dealer._id}
+                                                        onChange={async (e) => {
+                                                            setTierUpdating(dealer._id);
+                                                            try { await setDealerTier({ dealerId: dealer._id, tier: e.target.value as any }); }
+                                                            catch (err) { console.error(err); }
+                                                            finally { setTierUpdating(null); }
+                                                        }}
+                                                        className="text-xs font-bold border border-slate-200 rounded-xl px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer disabled:opacity-50"
+                                                    >
+                                                        <option value="starter">🌱 Starter — P1,500/mo · 50 slots</option>
+                                                        <option value="growth">⚡ Growth — P2,500/mo · 150 slots</option>
+                                                        <option value="unlimited">∞ Unlimited — P3,500/mo</option>
+                                                    </select>
+                                                    {tierUpdating === dealer._id && <Loader2 size={12} className="animate-spin inline ml-2 text-slate-400" />}
+                                                </td>
+                                                <td className="px-6 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-slate-600">+{dealer.listingSlotOverride ?? 0} extra</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Upgrade requests panel */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-black text-slate-900">Upgrade &amp; Slot Requests</h3>
+                                {pendingUpgradeCount > 0 && (
+                                    <span className="text-xs font-black bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">
+                                        {pendingUpgradeCount} pending
+                                    </span>
+                                )}
+                            </div>
+
+                            {!upgradeRequests || upgradeRequests.length === 0 ? (
+                                <div className="bg-white rounded-3xl border border-slate-100 p-12 flex flex-col items-center text-center gap-3">
+                                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
+                                        <CheckCircle2 size={24} className="text-slate-300" />
+                                    </div>
+                                    <p className="font-black text-slate-900">All clear</p>
+                                    <p className="text-sm text-slate-400">No subscription requests at this time.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {upgradeRequests.map((req: any) => (
+                                        <div
+                                            key={req._id}
+                                            className={`bg-white rounded-2xl border shadow-sm p-5 space-y-4 ${
+                                                req.status === "pending" ? "border-indigo-200" : "border-slate-100"
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <p className="font-black text-slate-900 text-sm">{req.dealerName}</p>
+                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                                            req.status === "pending" ? "bg-indigo-100 text-indigo-700"
+                                                            : req.status === "approved" ? "bg-emerald-100 text-emerald-700"
+                                                            : "bg-slate-100 text-slate-500"
+                                                        }`}>
+                                                            {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 mt-1">
+                                                        {req.requestType === "upgrade_tier"
+                                                            ? `Requesting upgrade to ${req.requestedTier?.charAt(0).toUpperCase()}${req.requestedTier?.slice(1)} tier`
+                                                            : `Requesting ${req.extraSlotsRequested} extra slots — P ${((req.extraSlotsCost ?? 0) / 100).toLocaleString()}`
+                                                        }
+                                                    </p>
+                                                    {req.message && (
+                                                        <p className="text-xs text-slate-400 italic mt-1 bg-slate-50 rounded-lg px-3 py-2">&ldquo;{req.message}&rdquo;</p>
+                                                    )}
+                                                    <p className="text-[10px] text-slate-400 mt-1">
+                                                        Submitted: {new Date(req.createdAt).toLocaleDateString("en-BW", { day: "numeric", month: "short", year: "numeric" })}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {req.status === "pending" && (
+                                                <div className="space-y-2">
+                                                    <textarea
+                                                        placeholder="Admin note (optional, shown to dealer on dismiss)..."
+                                                        rows={2}
+                                                        value={reqAdminNote[req._id] ?? ""}
+                                                        onChange={(e) => setReqAdminNote(prev => ({ ...prev, [req._id]: e.target.value }))}
+                                                        className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder:text-slate-300"
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await resolveRequest({
+                                                                        requestId: req._id,
+                                                                        action: "approve",
+                                                                        adminNote: reqAdminNote[req._id] || undefined,
+                                                                    });
+                                                                } catch (err: any) { alert(err?.message); }
+                                                            }}
+                                                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-xl transition-colors"
+                                                        >
+                                                            <Check size={13} /> Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await resolveRequest({
+                                                                        requestId: req._id,
+                                                                        action: "dismiss",
+                                                                        adminNote: reqAdminNote[req._id] || undefined,
+                                                                    });
+                                                                } catch (err: any) { alert(err?.message); }
+                                                            }}
+                                                            className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-50 transition-colors"
+                                                        >
+                                                            <X size={13} /> Dismiss
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {req.status !== "pending" && req.adminNote && (
+                                                <p className="text-xs text-slate-400 italic bg-slate-50 rounded-lg px-3 py-2">
+                                                    Admin note: &ldquo;{req.adminNote}&rdquo;
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </section>
                 )}
             </div>

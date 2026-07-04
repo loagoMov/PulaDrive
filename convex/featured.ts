@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import { isGlobalAdmin, requireGlobalAdmin } from "./utils";
 import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "./rateLimit";
+import { buildInvoiceNumber, generateInvoiceUrl } from "./billing";
 
 // Helper to assert authentication
 async function requireAuth(ctx: any) {
@@ -59,6 +60,7 @@ export const apply = mutation({
             price,
             status,
             appliedAt: Date.now(),
+            updatedAt: Date.now(),
         });
 
         // Push notification to admins
@@ -177,8 +179,78 @@ export const approve = mutation({
         const startTimestamp = Math.max(currentFeaturedUntil, Date.now());
         const featuredUntil = startTimestamp + app.durationDays * 24 * 60 * 60 * 1000;
 
-        await ctx.db.patch(app.vehicleId, { featuredUntil });
-        await ctx.db.patch(args.applicationId, { status: "approved" });
+        await ctx.db.patch(app.vehicleId, { featuredUntil, updatedAt: Date.now() });
+        await ctx.db.patch(args.applicationId, { status: "approved", updatedAt: Date.now() });
+
+        // ── Auto-generate a promotion invoice ──────────────────────────────────
+        const dealer = await ctx.db.get(app.dealerId);
+        if (dealer) {
+            const now        = new Date();
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+            const monthlyCount = (await ctx.db
+                .query("invoices")
+                .withIndex("by_dealer", (q) => q.eq("dealerId", app.dealerId))
+                .collect()
+            ).filter((i) => (i.issuedAt ?? 0) >= monthStart).length;
+
+            const invoiceNumber  = buildInvoiceNumber(dealer.name, monthlyCount + 1);
+            const vehicleName    = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+            const description    = `PulaDrive Featured Listing — ${app.durationDays} Days (${vehicleName})`;
+            const issuedAt       = Date.now();
+            const amountCents    = app.price * 100; // price stored in whole Pula; invoices use cents
+
+            // Due 7 days from now
+            const dueDateObj = new Date();
+            dueDateObj.setDate(dueDateObj.getDate() + 7);
+            const dueDate        = dueDateObj.toISOString();
+
+            const tin            = dealer.bursTin || "000000000";
+            const subDescription = `One-time featured listing fee — vehicle promoted to the top of search results for ${app.durationDays} days`;
+            const externalPdfUrl = generateInvoiceUrl(
+                dealer.name,
+                tin,
+                invoiceNumber,
+                app.price,          // generateInvoiceUrl expects whole Pula
+                dueDate,
+                description,
+                subDescription,
+            );
+
+            const invoiceId = await ctx.db.insert("invoices", {
+                dealerId:      app.dealerId,
+                invoiceNumber,
+                dealerName:    dealer.name,
+                description,
+                amount:        amountCents,
+                status:        "pending",
+                issuedAt,
+                dueDate,
+                externalPdfUrl,
+            });
+
+            // Notify the dealer (visible in /dashboard/billing)
+            await ctx.db.insert("notifications", {
+                recipientId: app.dealerId,
+                type:        "billing",
+                title:       "Promotion Invoice Issued",
+                message:     `Your featured listing for ${vehicleName} (${app.durationDays} days) has been approved. Invoice ${invoiceNumber} for P ${app.price.toFixed(2)} is now due.`,
+                isRead:      false,
+                createdAt:   issuedAt,
+                actionUrl:   "/dashboard/billing",
+            });
+
+            // Notify admin (visible in /admin/billing)
+            await ctx.db.insert("notifications", {
+                recipientId: "admin",
+                type:        "billing",
+                title:       "Promotion Invoice Generated",
+                message:     `Invoice ${invoiceNumber} for P ${app.price.toFixed(2)} issued to ${dealer.name} for featured listing: ${vehicleName} (${app.durationDays} days).`,
+                isRead:      false,
+                createdAt:   issuedAt,
+                actionUrl:   "/admin/billing",
+            });
+        }
+        // ──────────────────────────────────────────────────────────────────────
 
         return { success: true };
     },
@@ -192,7 +264,7 @@ export const reject = mutation({
         const app = await ctx.db.get(args.applicationId);
         if (!app) throw new ConvexError("Application not found.");
 
-        await ctx.db.patch(args.applicationId, { status: "rejected" });
+        await ctx.db.patch(args.applicationId, { status: "rejected", updatedAt: Date.now() });
         return { success: true };
     },
 });
@@ -206,8 +278,55 @@ export const revoke = mutation({
         if (!app) throw new ConvexError("Application not found.");
         if (app.status !== "approved") throw new ConvexError("Only approved active applications can be revoked.");
 
-        await ctx.db.patch(app.vehicleId, { featuredUntil: undefined });
-        await ctx.db.patch(args.applicationId, { status: "revoked" });
+        await ctx.db.patch(app.vehicleId, { featuredUntil: undefined, updatedAt: Date.now() });
+        await ctx.db.patch(args.applicationId, { status: "revoked", updatedAt: Date.now() });
+
+        return { success: true };
+    },
+});
+
+// ─── Cancel Active Promotion (Dealer Self-Service) ────────────────────────────
+export const cancelByDealer = mutation({
+    args: { vehicleId: v.id("vehicles") },
+    handler: async (ctx, args) => {
+        const identity = await requireAuth(ctx);
+
+        const vehicle = await ctx.db.get(args.vehicleId);
+        if (!vehicle) throw new ConvexError("Vehicle not found.");
+
+        // Verify caller owns this vehicle's dealership
+        const dealership = await ctx.db.get(vehicle.dealerId);
+        if (!dealership) throw new ConvexError("Dealership not found.");
+        const callerOrgId = identity.orgID ?? identity.orgId ?? identity.subject;
+        if (dealership.clerkOrgId !== callerOrgId) {
+            throw new ConvexError("Forbidden: You cannot cancel a promotion you do not own.");
+        }
+
+        // Find the active approved application for this vehicle
+        const app = await ctx.db
+            .query("featuredApplications")
+            .withIndex("by_vehicle", (q) => q.eq("vehicleId", args.vehicleId))
+            .filter((q) => q.eq(q.field("status"), "approved"))
+            .first();
+
+        if (!app) throw new ConvexError("No active promotion found for this vehicle.");
+
+        // Clear featured status on vehicle and mark application as revoked
+        await ctx.db.patch(args.vehicleId, { featuredUntil: undefined, updatedAt: Date.now() });
+        await ctx.db.patch(app._id, { status: "revoked", updatedAt: Date.now() });
+
+        const vehicleName = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+
+        // Notify admin of the dealer-initiated cancellation
+        await ctx.db.insert("notifications", {
+            recipientId: "admin",
+            type: "system",
+            title: "Promotion Cancelled by Dealer",
+            message: `${dealership.name} cancelled their active promotion for ${vehicleName}.`,
+            isRead: false,
+            createdAt: Date.now(),
+            actionUrl: "/admin?tab=promotions",
+        });
 
         return { success: true };
     },
@@ -251,11 +370,11 @@ export const clearExpired = internalMutation({
             const vehicle = await ctx.db.get(app.vehicleId);
             if (vehicle && vehicle.featuredUntil && vehicle.featuredUntil <= now) {
                 // Time limit reached
-                await ctx.db.patch(vehicle._id, { featuredUntil: undefined });
-                await ctx.db.patch(app._id, { status: "expired" });
+                await ctx.db.patch(vehicle._id, { featuredUntil: undefined, updatedAt: Date.now() });
+                await ctx.db.patch(app._id, { status: "expired", updatedAt: Date.now() });
             } else if (!vehicle) {
                 // Vehicle was deleted but app was left behind
-                await ctx.db.patch(app._id, { status: "expired" });
+                await ctx.db.patch(app._id, { status: "expired", updatedAt: Date.now() });
             }
         }
     },

@@ -225,3 +225,89 @@ else:
     print("No analytics to upload.")
 
 print("Pipeline completed successfully.")
+
+# 7. Sync all main tables
+TABLES_TO_SYNC = [
+    "dealerships",
+    "vehicles",
+    "reports",
+    "invoices",
+    "featuredApplications",
+    "subscriptionUpgradeRequests",
+    "notifications",
+    "searchHistory",
+    "rateLimits"
+]
+
+import json
+import tempfile
+
+for table in TABLES_TO_SYNC:
+    print(f"\\n--- Syncing table {table} ---")
+    table_exists = False
+    try:
+        count = db.execute(f"SELECT count(*) FROM information_schema.tables WHERE table_name = '{table}'").fetchone()[0]
+        table_exists = count > 0
+    except Exception:
+        pass
+
+    since = 0
+    if table_exists:
+        try:
+            # Try to get max updatedAt or _creationTime
+            res = db.execute(f"SELECT MAX(GREATEST(COALESCE(CAST(updatedAt AS BIGINT), 0), COALESCE(CAST(_creationTime AS BIGINT), 0))) FROM {table}").fetchone()
+            if res and res[0]:
+                since = int(res[0])
+        except Exception as e:
+            print(f"Could not get max timestamp for {table}, doing full sync.")
+
+    print(f"Fetching changes since {since}...")
+    
+    cursor = ""
+    has_more = True
+    total_synced = 0
+
+    while has_more:
+        export_url = f"{CONVEX_URL}/api/export-table?secret={SYNC_SECRET}&table={table}&since={since}"
+        if cursor:
+            export_url += f"&cursor={cursor}"
+            
+        resp = requests.get(export_url, timeout=30)
+        if resp.status_code != 200:
+            print(f"Failed to fetch {table}: {resp.text}")
+            break
+            
+        data = resp.json()
+        page_items = data.get("page", [])
+        cursor = data.get("continueCursor")
+        has_more = data.get("isDone") is False
+        
+        if not page_items:
+            break
+            
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp:
+            json.dump(page_items, tmp)
+            tmp_path = tmp.name
+            
+        try:
+            if not table_exists:
+                db.execute(f"CREATE TABLE {table} AS SELECT * FROM read_json_auto('{tmp_path}')")
+                table_exists = True
+                print(f"Created table {table} with {len(page_items)} rows.")
+            else:
+                # Delete updated rows first
+                db.execute(f"DELETE FROM {table} WHERE _id IN (SELECT _id FROM read_json_auto('{tmp_path}'))")
+                # Insert the rows
+                # Using read_json_auto with union_by_name to handle new columns in json vs table
+                # We need to make sure the table has the columns, DuckDB alter table is manual.
+                # For simplicity, if schema evolved, it will error and we'd need to rebuild.
+                db.execute(f"INSERT INTO {table} SELECT * FROM read_json_auto('{tmp_path}')")
+                print(f"Upserted {len(page_items)} rows in {table}.")
+            total_synced += len(page_items)
+        except Exception as e:
+            print(f"Error upserting into {table}: {e}")
+            break
+        finally:
+            os.remove(tmp_path)
+            
+    print(f"Finished syncing {total_synced} rows for {table}.")

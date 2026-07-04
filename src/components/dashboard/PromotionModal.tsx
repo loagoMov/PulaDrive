@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { X, Flame, Sparkles, AlertTriangle, Loader2, CheckCircle2, BadgeAlert, Hourglass } from "lucide-react";
+import { X, Flame, Sparkles, AlertTriangle, Loader2, CheckCircle2, BadgeAlert, Hourglass, XCircle } from "lucide-react";
 import Image from "next/image";
 
 interface PromotionModalProps {
@@ -12,11 +12,13 @@ interface PromotionModalProps {
 }
 
 export default function PromotionModal({ vehicle, onClose }: PromotionModalProps) {
-    const applyFeatured = useMutation(api.featured.apply);
+    const applyFeatured  = useMutation(api.featured.apply);
+    const cancelFeatured = useMutation(api.featured.cancelByDealer);
     const slots = useQuery(api.featured.getActiveSlots);
     const [selectedDays, setSelectedDays] = useState<7 | 14 | 30 | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [statusResult, setStatusResult] = useState<"pending" | "waitlisted" | null>(null);
+    const [isCancelling, setIsCancelling] = useState(false);
+    const [statusResult, setStatusResult] = useState<"pending" | "waitlisted" | "cancelled" | null>(null);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -45,11 +47,35 @@ export default function PromotionModal({ vehicle, onClose }: PromotionModalProps
         }
     };
 
+    const handleCancel = async () => {
+        setIsCancelling(true);
+        setError(null);
+        try {
+            await cancelFeatured({ vehicleId: vehicle._id });
+            setStatusResult("cancelled");
+            setSuccess(true);
+            setTimeout(() => {
+                onClose();
+            }, 2500);
+        } catch (err: any) {
+            console.error(err);
+            setError(err?.message ?? "Failed to cancel promotion.");
+        } finally {
+            setIsCancelling(false);
+        }
+    };
+
     if (success && statusResult) {
         return (
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                 <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full text-center space-y-4 animate-in zoom-in-95 duration-200">
-                    {statusResult === "waitlisted" ? (
+                    {statusResult === "cancelled" ? (
+                        <>
+                            <XCircle className="mx-auto text-rose-400" size={64} />
+                            <h3 className="text-2xl font-black text-slate-900">Promotion Cancelled</h3>
+                            <p className="text-slate-500 font-medium">Your featured promotion has been stopped. The listing has returned to organic results.</p>
+                        </>
+                    ) : statusResult === "waitlisted" ? (
                         <>
                             <Hourglass className="mx-auto text-amber-500 animate-bounce" size={64} />
                             <h3 className="text-2xl font-black text-slate-900">Added to Waitlist</h3>
@@ -67,6 +93,88 @@ export default function PromotionModal({ vehicle, onClose }: PromotionModalProps
         );
     }
 
+    // ── Cancel-promotion view (vehicle is currently live and featured) ──────────
+    if (isCurrentlyFeatured) {
+        const diffMs   = vehicle.featuredUntil - Date.now();
+        const daysLeft = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+        const hoursLeft = Math.max(0, Math.floor((diffMs / (1000 * 60 * 60)) % 24));
+        const timeLeft = daysLeft > 0 ? `${daysLeft}d ${hoursLeft}h` : `${hoursLeft}h`;
+
+        return (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    {/* Header */}
+                    <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <div>
+                            <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                                <Flame className="text-amber-500 fill-amber-400 animate-pulse" size={20} /> Live Promotion
+                            </h3>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Manage Featured Listing</p>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                            <X size={20} className="text-slate-400" />
+                        </button>
+                    </div>
+
+                    <div className="p-6 space-y-5">
+                        {/* Vehicle preview */}
+                        <div className="flex gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0">
+                                {vehicle.imageUrls?.[0] && (
+                                    <Image src={vehicle.imageUrls[0]} alt={vehicle.make} fill sizes="64px" className="object-cover" />
+                                )}
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-slate-900 text-sm leading-tight">{vehicle.make} {vehicle.model}</h4>
+                                <p className="text-xs text-slate-400 font-medium pt-0.5">{vehicle.year} • P {vehicle.price.toLocaleString()}</p>
+                                <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                    <Flame size={10} className="fill-indigo-500" /> Promoted — {timeLeft} remaining
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Warning */}
+                        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3">
+                            <AlertTriangle className="text-rose-500 shrink-0 mt-0.5" size={18} />
+                            <div className="text-xs text-rose-800 font-semibold leading-relaxed">
+                                <p className="font-black mb-1">Stopping early does not issue a refund.</p>
+                                <p>Cancelling will immediately remove this vehicle from the featured section and return it to standard organic results. The invoice for this promotion remains due.</p>
+                            </div>
+                        </div>
+
+                        {error && (
+                            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold rounded-xl">
+                                {error}
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex gap-3 pt-2 border-t border-slate-100">
+                            <button
+                                onClick={onClose}
+                                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm transition-all"
+                            >
+                                Keep Promotion
+                            </button>
+                            <button
+                                onClick={handleCancel}
+                                disabled={isCancelling}
+                                className="flex-1 px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isCancelling ? (
+                                    <><Loader2 className="animate-spin" size={16} /> Cancelling...</>
+                                ) : (
+                                    <><XCircle size={16} /> Cancel Promotion</>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ── Apply-for-promotion view (vehicle is NOT currently featured) ─────────────
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -119,15 +227,9 @@ export default function PromotionModal({ vehicle, onClose }: PromotionModalProps
                         <div>
                             <h4 className="font-bold text-slate-900 text-sm leading-tight">{vehicle.make} {vehicle.model}</h4>
                             <p className="text-xs text-slate-400 font-medium pt-0.5">{vehicle.year} • P {vehicle.price.toLocaleString()}</p>
-                            {isCurrentlyFeatured ? (
-                                <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                    <Flame size={10} className="fill-indigo-500" /> Promoted Live
-                                </span>
-                            ) : (
-                                <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
-                                    Standard Organic Listing
-                                </span>
-                            )}
+                            <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
+                                Standard Organic Listing
+                            </span>
                         </div>
                     </div>
 

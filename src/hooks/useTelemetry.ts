@@ -21,7 +21,7 @@ const eventQueue: TelemetryEvent[] = [];
 // Helper to generate a cryptographically secure UUID-like string
 function getOrCreateAnonId(): string {
   if (typeof window === "undefined") return "";
-  let id = localStorage.getItem("carplace_anon_id");
+  let id = localStorage.getItem("puladrive_anon_id");
   if (!id) {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
       id = crypto.randomUUID();
@@ -42,7 +42,7 @@ function getOrCreateAnonId(): string {
       // Last-resort: timestamp + counter (non-random, but only hit in very old envs)
       id = "anon_" + Date.now().toString(36);
     }
-    localStorage.setItem("carplace_anon_id", id);
+    localStorage.setItem("puladrive_anon_id", id);
   }
   return id;
 }

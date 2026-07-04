@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import NotFound from "@/app/not-found";
 
 const ReportModal = dynamic(() => import("../../../components/ui/ReportModal"), { ssr: false });
 
@@ -34,12 +35,16 @@ export default function VehicleDetails() {
         }
     }, [vehicle, trackEvent]);
 
-    if (!vehicle) {
+    if (vehicle === undefined) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
             </div>
         );
+    }
+
+    if (vehicle === null) {
+        return <NotFound />;
     }
 
     const images = (vehicle.imageUrls && vehicle.imageUrls.length > 0) ? vehicle.imageUrls : ["/placeholder-car.jpg"];
@@ -63,7 +68,7 @@ export default function VehicleDetails() {
     const handleShare = async () => {
         const shareData = {
             title: `${vehicle.year} ${vehicle.make} ${vehicle.model} – P ${vehicle.price.toLocaleString()}`,
-            text: `Check out this ${vehicle.year} ${vehicle.make} ${vehicle.model} for P ${vehicle.price.toLocaleString()} on CarPlace!`,
+            text: `Check out this ${vehicle.year} ${vehicle.make} ${vehicle.model} for P ${vehicle.price.toLocaleString()} on PulaDrive!`,
             url: listingUrl,
         };
         trackEvent("click_share", vehicle._id);

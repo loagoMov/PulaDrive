@@ -416,7 +416,7 @@ export default function AdvancedSearchPage() {
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                             <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">
-                                CarPlace<span className="text-primary-600">.</span>
+                                PulaDrive<span className="text-primary-600">.</span>
                             </h1>
                             <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-primary-600 to-violet-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest">
                                 <Sparkles size={9} /> AI Deal Finder

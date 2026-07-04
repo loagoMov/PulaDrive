@@ -85,9 +85,11 @@ export const list = query({
 });
 
 export const getVehicle = query({
-    args: { id: v.id("vehicles") },
+    args: { id: v.string() },
     handler: async (ctx, args) => {
-        const car = await ctx.db.get(args.id);
+        const vehicleId = ctx.db.normalizeId("vehicles", args.id);
+        if (!vehicleId) return null;
+        const car = await ctx.db.get(vehicleId);
         if (!car) return null;
         const dealer = await ctx.db.get(car.dealerId);
         return {
@@ -242,8 +244,33 @@ export const create = mutation({
         if (args.mileage !== undefined && args.mileage < 0) throw new ConvexError("Mileage cannot be negative.");
         if (args.images.length > MAX_IMAGES) throw new ConvexError(`You may upload at most ${MAX_IMAGES} images.`);
 
+        // ── Subscription slot enforcement ──────────────────────────────────────
+        // Count non-sold vehicles (available + reserved) — sold listings do not use a slot.
+        const TIER_LIMITS: Record<string, number> = { starter: 50, growth: 150, unlimited: Infinity };
+        const tier = dealership.subscriptionTier ?? "starter";
+        const baseLimit = TIER_LIMITS[tier] ?? 50;
+        const override = (dealership as any).listingSlotOverride ?? 0;
+        const slotLimit = baseLimit === Infinity ? Infinity : baseLimit + override;
+
+        if (slotLimit !== Infinity) {
+            const activeCount = await ctx.db
+                .query("vehicles")
+                .withIndex("by_dealer", (q) => q.eq("dealerId", args.dealerId))
+                .filter((q) => q.neq(q.field("status"), "sold"))
+                .collect()
+                .then((v) => v.length);
+
+            if (activeCount >= slotLimit) {
+                throw new ConvexError(
+                    `Listing slot limit reached. Your ${tier.charAt(0).toUpperCase() + tier.slice(1)} plan allows ${slotLimit} active listing${slotLimit === 1 ? "" : "s"}. ` +
+                    `Please upgrade your subscription or request extra slots from your Billing page.`
+                );
+            }
+        }
+        // ── End slot enforcement ────────────────────────────────────────────────
+
         const searchText = `${args.make} ${args.model}`.toLowerCase();
-        return await ctx.db.insert("vehicles", { ...args, searchText });
+        return await ctx.db.insert("vehicles", { ...args, searchText, updatedAt: Date.now() });
     },
 });
 
@@ -307,7 +334,7 @@ export const update = mutation({
             updateData.searchText = `${make} ${model}`.toLowerCase();
         }
 
-        await ctx.db.patch(id, updateData);
+        await ctx.db.patch(id, { ...updateData, updatedAt: Date.now() });
     },
 });
 
@@ -474,6 +501,7 @@ export const updateFeaturedStatus = mutation({
 
         await ctx.db.patch(args.vehicleId, {
             featuredUntil: args.timestamp ?? undefined,
+            updatedAt: Date.now(),
         });
 
         return { success: true };

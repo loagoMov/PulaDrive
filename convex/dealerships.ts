@@ -66,9 +66,19 @@ export const create = mutation({
         );
 
         // V-03 fix: the caller can only register their own Clerk org as a dealership.
-        const callerOrgId = identity.orgID ?? identity.orgId ?? identity.subject;
-        if (args.clerkOrgId !== callerOrgId) {
-            throw new ConvexError("Forbidden: You can only register a dealership for your own organization.");
+        const isAdmin = await isGlobalAdmin(ctx);
+        if (!isAdmin) {
+            const callerOrgId = identity.orgID ?? identity.orgId;
+            if (!callerOrgId) {
+                throw new ConvexError(
+                    "Forbidden: Clerk organization context is missing in Convex authentication token. " +
+                    "Please ensure you have selected an organization in the portal, or " +
+                    "ensure the Clerk JWT template includes the 'org_id' custom claim."
+                );
+            }
+            if (args.clerkOrgId !== callerOrgId) {
+                throw new ConvexError("Forbidden: You can only register a dealership for your own organization.");
+            }
         }
 
         // Input length limits
@@ -95,7 +105,7 @@ export const create = mutation({
 
         if (existing) {
             if (!existing.authorizedEmails) {
-                await ctx.db.patch(existing._id, { authorizedEmails: emailList });
+                await ctx.db.patch(existing._id, { authorizedEmails: emailList, updatedAt: Date.now() });
             }
             return existing._id;
         }
@@ -107,7 +117,8 @@ export const create = mutation({
             clerkOrgId: args.clerkOrgId,
             logoUrl: args.logoUrl,
             authorizedEmails: emailList,
-            rating: 5.0,
+            subscriptionTier: "starter",
+            updatedAt: Date.now(),
         });
     },
 });
@@ -155,6 +166,7 @@ export const updateAuthorizedEmails = mutation({
 
         await ctx.db.patch(args.id, {
             authorizedEmails: args.authorizedEmails,
+            updatedAt: Date.now(),
         });
     },
 });
@@ -184,7 +196,7 @@ export const updateRating = mutation({
         if (args.rating < 0 || args.rating > 5) {
             throw new ConvexError("Rating must be between 0 and 5.");
         }
-        await ctx.db.patch(args.id, { rating: args.rating });
+        await ctx.db.patch(args.id, { rating: args.rating, updatedAt: Date.now() });
     },
 });
 
@@ -228,6 +240,7 @@ export const updatePhone = mutation({
 
         await ctx.db.patch(args.id, {
             phone: cleanedPhone,
+            updatedAt: Date.now(),
         });
     },
 });

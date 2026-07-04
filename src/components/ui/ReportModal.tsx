@@ -191,7 +191,7 @@ export default function ReportModal({ vehicleId, dealerId, vehicleName, onClose 
                                 )}
 
                                 <div className="bg-slate-50 rounded-xl p-4 text-xs text-slate-500 font-medium leading-relaxed mt-2">
-                                    <strong className="text-slate-700">Your privacy:</strong> Reports are reviewed privately by CarPlace administrators.
+                                    <strong className="text-slate-700">Your privacy:</strong> Reports are reviewed privately by PulaDrive administrators.
                                 </div>
                             </div>
                         ) : (

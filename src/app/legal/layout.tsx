@@ -16,7 +16,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
                     </Link>
                     <div className="h-4 w-px bg-slate-200" />
                     <span className="text-sm font-black text-slate-900">
-                        CarPlace<span className="text-primary-600">.</span>
+                        PulaDrive<span className="text-primary-600">.</span>
                     </span>
                     <span className="text-sm text-slate-400 font-medium">Legal</span>
                 </div>
@@ -32,7 +32,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
                 <Link href="/legal/privacy" className="hover:text-primary-600 transition-colors">Privacy Policy</Link>
                 <Link href="/legal/terms" className="hover:text-primary-600 transition-colors">Terms of Use</Link>
                 <Link href="/legal/compliance" className="hover:text-primary-600 transition-colors">Data & Compliance</Link>
-                <span className="ml-auto">© 2026 CarPlace (Pty) Ltd</span>
+                <span className="ml-auto">© 2026 PulaDrive (Pty) Ltd</span>
             </footer>
         </div>
     );

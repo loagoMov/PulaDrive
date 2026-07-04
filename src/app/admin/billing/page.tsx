@@ -10,9 +10,19 @@ import {
     FileText, Users, Activity, CheckCircle2, AlertTriangle,
     FileSpreadsheet, PlusCircle, ChevronLeft, CreditCard,
     Clock, TrendingUp, Building2, ChevronDown, ChevronUp,
-    ExternalLink, Loader2, Shield
+    ExternalLink, Loader2, Shield, Layers, Star, Zap,
+    Infinity as InfinityIcon, X, ChevronRight, Receipt
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+// ── Tier config (mirrors convex/subscriptions.ts) ─────────────────────────────
+const TIERS = {
+    starter:   { label: "Starter",   price: 150000, slots: 50,       icon: "🌱" },
+    growth:    { label: "Growth",    price: 250000, slots: 150,      icon: "⚡" },
+    unlimited: { label: "Unlimited", price: 350000, slots: Infinity, icon: "∞"  },
+} as const;
+type TierKey = keyof typeof TIERS;
+const EXTRA_SLOT_UNIT = 20000; // P200 in cents
 
 type EvaluatedRow = {
     confidence: "PERFECT" | "FUZZY" | "NONE";
@@ -41,6 +51,341 @@ function HealthBadge({ health }: { health: "good" | "warning" | "critical" }) {
     );
 }
 
+// ── Invoice type chooser ──────────────────────────────────────────────────────
+type InvoiceType = "subscription" | "extra_slots" | "custom";
+
+interface InvoiceFormState {
+    dealerId: string;
+    invoiceType: InvoiceType;
+    // subscription
+    tierKey: TierKey;
+    // extra slots
+    extraSlots: number;
+    linkedRequestId: string;
+    // custom
+    customAmount: string;
+    customDescription: string;
+    // shared
+    dueDate: string;
+}
+
+function defaultForm(): InvoiceFormState {
+    const due = new Date();
+    due.setDate(due.getDate() + 7);
+    return {
+        dealerId: "",
+        invoiceType: "subscription",
+        tierKey: "starter",
+        extraSlots: 10,
+        linkedRequestId: "",
+        customAmount: "",
+        customDescription: "",
+        dueDate: due.toISOString().slice(0, 10),
+    };
+}
+
+// ── IssueInvoicePanel ─────────────────────────────────────────────────────────
+function IssueInvoicePanel({
+    dealers,
+    approvedRequests,
+    onClose,
+    onDone,
+    prefillDealerId,
+}: {
+    dealers: any[];
+    approvedRequests: any[];
+    onClose: () => void;
+    onDone: () => void;
+    prefillDealerId?: string;
+}) {
+    const createOfficialInvoice = useMutation(api.billing.createOfficialInvoice);
+    const [form, setForm] = useState<InvoiceFormState>({
+        ...defaultForm(),
+        dealerId: prefillDealerId ?? "",
+    });
+    const [submitting, setSubmitting] = useState(false);
+
+    const update = (patch: Partial<InvoiceFormState>) => setForm(f => ({ ...f, ...patch }));
+
+    // Compute amount based on type
+    const computedAmountCents = (() => {
+        if (form.invoiceType === "subscription") return TIERS[form.tierKey].price;
+        if (form.invoiceType === "extra_slots") return form.extraSlots * EXTRA_SLOT_UNIT;
+        return Math.round(parseFloat(form.customAmount || "0") * 100);
+    })();
+
+    // Build description
+    const buildDescription = () => {
+        const now = new Date();
+        const monthLabel = now.toLocaleString("en-BW", { month: "long", year: "numeric" });
+        if (form.invoiceType === "subscription") {
+            return `PulaDrive ${TIERS[form.tierKey].label} Subscription — ${monthLabel}`;
+        }
+        if (form.invoiceType === "extra_slots") {
+            return `PulaDrive Extra Listing Slots (${form.extraSlots} × P 200) — ${monthLabel}`;
+        }
+        return form.customDescription || `PulaDrive Custom Charge — ${monthLabel}`;
+    };
+
+    const handleSubmit = async () => {
+        if (!form.dealerId) { alert("Please select a dealership."); return; }
+        if (computedAmountCents <= 0) { alert("Amount must be greater than 0."); return; }
+        if (!form.dueDate) { alert("Please set a due date."); return; }
+        setSubmitting(true);
+        try {
+            await createOfficialInvoice({
+                dealerId: form.dealerId as Id<"dealerships">,
+                amount: computedAmountCents,
+                dueDate: new Date(form.dueDate).toISOString(),
+                description: buildDescription(),
+            });
+            onDone();
+        } catch (err: any) {
+            alert(err?.message || "Failed to create invoice.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const dealerApprovedRequests = form.dealerId
+        ? approvedRequests.filter((r: any) => r.dealerId === form.dealerId && r.requestType === "extra_slots")
+        : approvedRequests.filter((r: any) => r.requestType === "extra_slots");
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 sticky top-0 bg-white z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-primary-50 rounded-xl flex items-center justify-center">
+                            <Receipt size={18} className="text-primary-600" />
+                        </div>
+                        <div>
+                            <p className="font-black text-slate-900 text-sm leading-none">Issue Invoice</p>
+                            <p className="text-xs text-slate-400 mt-0.5">Generate and send a subscription or custom invoice</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors">
+                        <X size={16} className="text-slate-500" />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                    {/* Dealership selector */}
+                    <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2">Dealership</label>
+                        <select
+                            value={form.dealerId}
+                            onChange={e => update({ dealerId: e.target.value, linkedRequestId: "" })}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                            <option value="">Choose dealership…</option>
+                            {dealers.map((d: any) => (
+                                <option key={d._id} value={d._id}>{d.name} {d.clientCustomId ? `(${d.clientCustomId})` : ""}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Invoice type tabs */}
+                    <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2">Invoice Type</label>
+                        <div className="flex bg-slate-100 rounded-2xl p-1 gap-1">
+                            {([
+                                { key: "subscription", label: "📅 Subscription", desc: "Monthly tier fee" },
+                                { key: "extra_slots",  label: "➕ Extra Slots",  desc: "P200 per slot" },
+                                { key: "custom",       label: "✏️ Custom",       desc: "Free-form charge" },
+                            ] as const).map(t => (
+                                <button
+                                    key={t.key}
+                                    onClick={() => update({ invoiceType: t.key })}
+                                    className={`flex-1 py-2.5 px-2 rounded-xl text-xs font-black transition-all text-center ${
+                                        form.invoiceType === t.key
+                                            ? "bg-white shadow-sm text-slate-900"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                >
+                                    <div>{t.label}</div>
+                                    <div className={`text-[10px] font-bold mt-0.5 ${form.invoiceType === t.key ? "text-slate-400" : "text-slate-400/60"}`}>{t.desc}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ── Subscription type ── */}
+                    {form.invoiceType === "subscription" && (
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Select Tier</label>
+                            <div className="grid grid-cols-3 gap-3">
+                                {(Object.entries(TIERS) as [TierKey, typeof TIERS[TierKey]][]).map(([key, tier]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => update({ tierKey: key })}
+                                        className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                                            form.tierKey === key
+                                                ? "border-primary-500 bg-primary-50"
+                                                : "border-slate-100 hover:border-slate-200 bg-white"
+                                        }`}
+                                    >
+                                        <div className="text-2xl mb-2">{tier.icon}</div>
+                                        <p className="font-black text-slate-900 text-sm">{tier.label}</p>
+                                        <p className="text-[11px] text-slate-500 mt-0.5">
+                                            {tier.slots === Infinity ? "Unlimited slots" : `${tier.slots} slots`}
+                                        </p>
+                                        <p className="text-sm font-black text-primary-600 mt-2">
+                                            {formatPula(tier.price)}
+                                            <span className="text-[10px] text-slate-400 font-bold">/mo</span>
+                                        </p>
+                                        {form.tierKey === key && (
+                                            <div className="mt-2 flex items-center gap-1 text-[10px] font-black text-primary-600">
+                                                <CheckCircle2 size={11} /> Selected
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Extra slots type ── */}
+                    {form.invoiceType === "extra_slots" && (
+                        <div className="space-y-4">
+                            {/* Link to approved request */}
+                            {dealerApprovedRequests.length > 0 && (
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2">
+                                        Link to Approved Request (optional)
+                                    </label>
+                                    <div className="space-y-2">
+                                        {dealerApprovedRequests.map((req: any) => (
+                                            <button
+                                                key={req._id}
+                                                onClick={() => update({
+                                                    linkedRequestId: form.linkedRequestId === req._id ? "" : req._id,
+                                                    extraSlots: req.extraSlotsRequested ?? form.extraSlots,
+                                                })}
+                                                className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${
+                                                    form.linkedRequestId === req._id
+                                                        ? "border-indigo-400 bg-indigo-50"
+                                                        : "border-slate-100 hover:border-slate-200 bg-white"
+                                                }`}
+                                            >
+                                                <div>
+                                                    <p className="text-xs font-black text-slate-800">
+                                                        {req.dealerName ?? "Dealer"} — {req.extraSlotsRequested} extra slots
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-400 mt-0.5">
+                                                        Approved · {new Date(req.createdAt).toLocaleDateString("en-BW")}
+                                                    </p>
+                                                </div>
+                                                <span className="text-xs font-black text-indigo-600">{formatPula((req.extraSlotsRequested ?? 0) * EXTRA_SLOT_UNIT)}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="relative my-3"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"/></div><div className="relative flex justify-center"><span className="bg-white px-2 text-[10px] text-slate-400 font-bold">OR ENTER MANUALLY</span></div></div>
+                                </div>
+                            )}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2">Number of extra slots</label>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => update({ extraSlots: Math.max(1, form.extraSlots - 1), linkedRequestId: "" })}
+                                        className="w-10 h-10 rounded-xl border border-slate-200 font-black text-slate-600 hover:bg-slate-50 transition-colors"
+                                    >−</button>
+                                    <input
+                                        type="number" min={1} max={500}
+                                        value={form.extraSlots}
+                                        onChange={e => update({ extraSlots: Math.max(1, Math.min(500, parseInt(e.target.value) || 1)), linkedRequestId: "" })}
+                                        className="flex-1 text-center font-black text-slate-900 text-xl border border-slate-200 rounded-xl py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                    <button
+                                        onClick={() => update({ extraSlots: Math.min(500, form.extraSlots + 1), linkedRequestId: "" })}
+                                        className="w-10 h-10 rounded-xl border border-slate-200 font-black text-slate-600 hover:bg-slate-50 transition-colors"
+                                    >+</button>
+                                </div>
+                            </div>
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
+                                <div>
+                                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-wider">Total</p>
+                                    <p className="text-xs text-indigo-600 mt-0.5">{form.extraSlots} slots × P 200</p>
+                                </div>
+                                <p className="text-2xl font-black text-indigo-700">{formatPula(computedAmountCents)}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Custom type ── */}
+                    {form.invoiceType === "custom" && (
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2">Amount (Pula)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-slate-400">P</span>
+                                    <input
+                                        type="number" min={1} step="0.01"
+                                        placeholder="0.00"
+                                        value={form.customAmount}
+                                        onChange={e => update({ customAmount: e.target.value })}
+                                        className="w-full pl-8 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2">Description</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. PulaDrive Setup Fee — July 2026"
+                                    value={form.customDescription}
+                                    onChange={e => update({ customDescription: e.target.value })}
+                                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Due date + preview */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2">Due Date</label>
+                            <input
+                                type="date"
+                                value={form.dueDate}
+                                onChange={e => update({ dueDate: e.target.value })}
+                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2">Invoice Preview</label>
+                            <div className="border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50 space-y-1">
+                                <p className="text-xs text-slate-500 truncate">{buildDescription()}</p>
+                                <p className="text-lg font-black text-slate-900">{computedAmountCents > 0 ? formatPula(computedAmountCents) : "—"}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitting || !form.dealerId || computedAmountCents <= 0 || !form.dueDate}
+                            className="flex-1 btn-primary py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {submitting ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
+                            {submitting ? "Issuing…" : "Issue Invoice"}
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="px-5 py-3 border border-slate-200 rounded-2xl text-sm font-black text-slate-600 hover:bg-slate-50 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminBillingPage() {
     const router = useRouter();
     const { user, isLoaded } = useUser();
@@ -52,44 +397,22 @@ export default function AdminBillingPage() {
     const [expandedDealerId, setExpandedDealerId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<"roster" | "parser">("roster");
 
-    const [showInvoiceForm, setShowInvoiceForm] = useState(false);
-    const [formDealerId, setFormDealerId] = useState("");
-    const [formAmount, setFormAmount] = useState("");
-    const [formDueDate, setFormDueDate] = useState("");
-    const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false);
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [prefillDealerId, setPrefillDealerId] = useState<string | undefined>();
+    const [invoiceSuccess, setInvoiceSuccess] = useState<string | null>(null);
 
     const pendingInvoices = useQuery(api.billing.getPendingInvoices) || [];
     const dealers = useQuery(api.billing.getAllDealers) || [];
     const rosterData = useQuery(api.billing.getAllDealersBillingSummary) || [];
+    // Fetch all approved upgrade requests so we can link them to invoices
+    const upgradeRequests = useQuery(api.subscriptions.listUpgradeRequests, isGlobalAdmin ? {} : "skip") ?? [];
+    const approvedRequests = upgradeRequests.filter((r: any) => r.status === "approved");
 
     const processBankStatement = useMutation(api.billing.processBankStatement);
     const linkManualAliasToDealer = useMutation(api.billing.linkManualAliasToDealer);
     const markInvoiceAsPaid = useMutation(api.billing.markInvoiceAsPaid);
     const pushNotification = useMutation(api.notifications.pushNotification);
-    const createOfficialInvoice = useMutation(api.billing.createOfficialInvoice);
     const manualUpdateAccountStatus = useMutation(api.billing.manualUpdateAccountStatus);
-
-    const handleCreateInvoice = async () => {
-        if (!formDealerId || !formAmount || !formDueDate) return;
-        setIsSubmittingInvoice(true);
-        try {
-            const amountCents = Math.round(parseFloat(formAmount) * 100);
-            await createOfficialInvoice({
-                dealerId: formDealerId as Id<"dealerships">,
-                amount: amountCents,
-                dueDate: new Date(formDueDate).toISOString(),
-            });
-            alert("Invoice created successfully and notification sent to the dealership.");
-            setFormDealerId("");
-            setFormAmount("");
-            setFormDueDate("");
-            setShowInvoiceForm(false);
-        } catch (err: any) {
-            alert(err.message || "Failed to create invoice.");
-        } finally {
-            setIsSubmittingInvoice(false);
-        }
-    };
 
     const isSyncConnected = rosterData !== undefined;
     const totalOverdue = rosterData.filter(r => r.health === "critical").length;
@@ -97,7 +420,6 @@ export default function AdminBillingPage() {
     const totalBalanceDue = rosterData.reduce((s, r) => s + r.totalOwed, 0);
 
     // ─── CSV Parser handlers ─────────────────────────────────────────────────
-
     const handleProcessCsv = async () => {
         try {
             const lines = csvInput.split("\n").filter(l => l.trim() !== "");
@@ -163,7 +485,7 @@ export default function AdminBillingPage() {
         setEvaluatedRows(prev => prev.filter((_, i) => i !== index));
     };
 
-    // ─── Auth guard (defense-in-depth; layout.tsx is the primary gate) ─────
+    // ─── Auth guard ──────────────────────────────────────────────────────────
     if (!isLoaded || isGlobalAdmin === undefined) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -180,14 +502,9 @@ export default function AdminBillingPage() {
                         <Shield size={40} />
                     </div>
                     <h2 className="text-2xl font-black text-slate-900">Access Denied</h2>
-                    <p className="text-slate-500 text-sm font-medium">
-                        Only global administrators can access the billing portal.
-                    </p>
+                    <p className="text-slate-500 text-sm font-medium">Only global administrators can access the billing portal.</p>
                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                        Signed in as:{" "}
-                        <span className="lowercase text-slate-600">
-                            {user?.primaryEmailAddress?.emailAddress || "Guest"}
-                        </span>
+                        Signed in as: <span className="lowercase text-slate-600">{user?.primaryEmailAddress?.emailAddress || "Guest"}</span>
                     </p>
                 </div>
             </div>
@@ -210,7 +527,7 @@ export default function AdminBillingPage() {
                             <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                                 <CreditCard size={20} className="text-primary-600" /> Billing Administration
                             </h1>
-                            <p className="text-xs text-slate-400 font-medium">Manage dealer payments & reconciliation</p>
+                            <p className="text-xs text-slate-400 font-medium">Manage dealer payments &amp; reconciliation</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -225,6 +542,17 @@ export default function AdminBillingPage() {
             </header>
 
             <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 space-y-8">
+
+                {/* Invoice success toast */}
+                {invoiceSuccess && (
+                    <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4 animate-in fade-in duration-200">
+                        <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                        <p className="text-sm font-bold text-emerald-800 flex-1">{invoiceSuccess}</p>
+                        <button onClick={() => setInvoiceSuccess(null)} className="text-emerald-600 hover:text-emerald-800">
+                            <X size={16} />
+                        </button>
+                    </div>
+                )}
 
                 {/* KPI Row */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -266,6 +594,34 @@ export default function AdminBillingPage() {
                     </div>
                 </div>
 
+                {/* Approved extra-slot requests needing invoicing */}
+                {approvedRequests.length > 0 && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 space-y-3">
+                        <div className="flex items-center gap-2">
+                            <Layers size={16} className="text-indigo-600" />
+                            <p className="text-sm font-black text-indigo-800">
+                                {approvedRequests.length} approved slot request{approvedRequests.length > 1 ? "s" : ""} awaiting invoicing
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {approvedRequests.map((req: any) => (
+                                <button
+                                    key={req._id}
+                                    onClick={() => {
+                                        setPrefillDealerId(req.dealerId);
+                                        setShowInvoiceModal(true);
+                                    }}
+                                    className="flex items-center gap-2 bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-50 transition-colors"
+                                >
+                                    <Receipt size={12} />
+                                    {req.dealerName} — {req.extraSlotsRequested} slots ({formatPula((req.extraSlotsRequested ?? 0) * EXTRA_SLOT_UNIT)})
+                                    <ChevronRight size={12} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Tabs */}
                 <div className="flex bg-white border border-slate-100 shadow-sm rounded-2xl p-1 w-fit gap-1">
                     {(["roster", "parser"] as const).map(tab => (
@@ -283,14 +639,14 @@ export default function AdminBillingPage() {
                     ))}
                 </div>
 
-                {/* ── ROSTER TAB ──────────────────────────────────────────────────────── */}
+                {/* ── ROSTER TAB ────────────────────────────────────────────── */}
                 {activeTab === "roster" && (
                     <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                             <h2 className="font-black text-slate-900">Dealer Payment Roster</h2>
                             <div className="flex items-center gap-3">
                                 <button
-                                    onClick={() => setShowInvoiceForm(!showInvoiceForm)}
+                                    onClick={() => { setPrefillDealerId(undefined); setShowInvoiceModal(true); }}
                                     className="flex items-center gap-1.5 text-xs font-black bg-primary-600 text-white px-3 py-1.5 rounded-xl hover:bg-primary-700 transition active:scale-95 cursor-pointer shadow-sm"
                                 >
                                     <PlusCircle size={14} /> Issue Invoice
@@ -300,63 +656,6 @@ export default function AdminBillingPage() {
                                 </span>
                             </div>
                         </div>
-
-                        {showInvoiceForm && (
-                            <div className="p-6 bg-slate-50 border-b border-slate-150 grid grid-cols-1 md:grid-cols-4 gap-4 items-end animate-in fade-in duration-200">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Select Dealership</label>
-                                    <select
-                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                        value={formDealerId}
-                                        onChange={e => setFormDealerId(e.target.value)}
-                                    >
-                                        <option value="">Choose dealership...</option>
-                                        {dealers.map(d => (
-                                            <option key={d._id} value={d._id}>{d.name} ({d.clientCustomId ?? "No custom ID"})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Amount (Pula)</label>
-                                    <input
-                                        type="number"
-                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                        placeholder="e.g. 1500"
-                                        value={formAmount}
-                                        onChange={e => setFormAmount(e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Due Date</label>
-                                    <input
-                                        type="date"
-                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                        value={formDueDate}
-                                        onChange={e => setFormDueDate(e.target.value)}
-                                    />
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handleCreateInvoice}
-                                        disabled={isSubmittingInvoice || !formDealerId || !formAmount || !formDueDate}
-                                        className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-black text-xs py-2.5 rounded-xl transition disabled:opacity-50 cursor-pointer text-center"
-                                    >
-                                        {isSubmittingInvoice ? "Processing..." : "Create Invoice"}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setShowInvoiceForm(false);
-                                            setFormDealerId("");
-                                            setFormAmount("");
-                                            setFormDueDate("");
-                                        }}
-                                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs py-2.5 px-4 rounded-xl transition cursor-pointer"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        )}
 
                         {rosterData.length === 0 ? (
                             <div className="p-16 flex flex-col items-center text-center gap-4">
@@ -375,6 +674,7 @@ export default function AdminBillingPage() {
                                     const nextDue = row.nextInvoice
                                         ? new Date(row.nextInvoice.dueDate).toLocaleDateString("en-BW", { day: "numeric", month: "short", year: "numeric" })
                                         : "—";
+                                    const dealerTier = ((row.dealer as any).subscriptionTier ?? "starter") as TierKey;
 
                                     return (
                                         <div key={row.dealer._id}>
@@ -390,7 +690,17 @@ export default function AdminBillingPage() {
                                                     </div>
                                                     <div>
                                                         <p className="font-black text-slate-900 text-sm leading-tight">{row.dealer.name}</p>
-                                                        <p className="text-[10px] text-slate-400 font-bold">{row.dealer.clientCustomId ?? "No ID"}</p>
+                                                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                            <p className="text-[10px] text-slate-400 font-bold">{row.dealer.clientCustomId ?? "No ID"}</p>
+                                                            {/* Tier badge */}
+                                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
+                                                                dealerTier === "unlimited" ? "bg-emerald-100 text-emerald-700"
+                                                                : dealerTier === "growth" ? "bg-indigo-100 text-indigo-700"
+                                                                : "bg-slate-100 text-slate-500"
+                                                            }`}>
+                                                                {TIERS[dealerTier].icon} {TIERS[dealerTier].label}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -413,13 +723,10 @@ export default function AdminBillingPage() {
                                                             row.daysUntilDue < 0 ? "text-red-600" :
                                                             row.daysUntilDue <= 7 ? "text-amber-600" : "text-slate-700"
                                                         }`}>
-                                                            {row.daysUntilDue === null
-                                                                ? "—"
-                                                                : row.daysUntilDue < 0
-                                                                    ? `${Math.abs(row.daysUntilDue)}d overdue`
-                                                                    : row.daysUntilDue === 0
-                                                                        ? "Today"
-                                                                        : `${row.daysUntilDue}d left`}
+                                                            {row.daysUntilDue === null ? "—"
+                                                                : row.daysUntilDue < 0 ? `${Math.abs(row.daysUntilDue)}d overdue`
+                                                                : row.daysUntilDue === 0 ? "Today"
+                                                                : `${row.daysUntilDue}d left`}
                                                         </p>
                                                     </div>
                                                     <div>
@@ -432,8 +739,18 @@ export default function AdminBillingPage() {
                                                     </div>
                                                 </div>
 
-                                                {/* Health + expand */}
-                                                <div className="flex items-center gap-3 shrink-0">
+                                                {/* Health + quick invoice + expand */}
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <button
+                                                        onClick={e => {
+                                                            e.stopPropagation();
+                                                            setPrefillDealerId(row.dealer._id);
+                                                            setShowInvoiceModal(true);
+                                                        }}
+                                                        className="flex items-center gap-1 text-[10px] font-black text-primary-600 bg-primary-50 hover:bg-primary-100 border border-primary-200 px-2.5 py-1.5 rounded-xl transition-colors"
+                                                    >
+                                                        <Receipt size={11} /> Invoice
+                                                    </button>
                                                     <HealthBadge health={row.health} />
                                                     {isExpanded
                                                         ? <ChevronUp size={16} className="text-slate-400" />
@@ -445,6 +762,32 @@ export default function AdminBillingPage() {
                                             {/* Expanded Invoice Detail */}
                                             {isExpanded && (
                                                 <div className="bg-slate-50 border-t border-slate-100 px-6 py-5 space-y-6">
+                                                    {/* Quick invoice shortcuts */}
+                                                    <div className="space-y-2">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Quick Invoice</p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {(Object.entries(TIERS) as [TierKey, typeof TIERS[TierKey]][]).map(([key, tier]) => (
+                                                                <button
+                                                                    key={key}
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        setPrefillDealerId(row.dealer._id);
+                                                                        setShowInvoiceModal(true);
+                                                                    }}
+                                                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black transition-colors ${
+                                                                        key === dealerTier
+                                                                            ? "bg-primary-600 text-white border-primary-600"
+                                                                            : "bg-white text-slate-700 border-slate-200 hover:border-primary-300 hover:text-primary-600"
+                                                                    }`}
+                                                                >
+                                                                    <span>{tier.icon}</span>
+                                                                    {tier.label} — {formatPula(tier.price)}
+                                                                    {key === dealerTier && <span className="text-[9px] opacity-80 ml-0.5">(current)</span>}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
                                                     {/* Manual Account Status Controls */}
                                                     <div className="bg-white rounded-xl border border-slate-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                                         <div>
@@ -489,54 +832,57 @@ export default function AdminBillingPage() {
 
                                                     <div>
                                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Invoice History</p>
-                                                    {[...row.overdue, ...row.pending, ...row.paid].length === 0 ? (
-                                                        <p className="text-sm text-slate-400">No invoices on record.</p>
-                                                    ) : (
-                                                        <div className="space-y-2">
-                                                            {[...row.overdue, ...row.pending, ...row.paid]
-                                                                .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
-                                                                .map(inv => (
-                                                                <div key={inv._id} className="bg-white rounded-xl border border-slate-100 px-4 py-3 flex items-center justify-between gap-4 text-sm">
-                                                                    <span className="font-bold text-slate-800">{inv.invoiceNumber}</span>
-                                                                    <span className="text-slate-400">{new Date(inv.dueDate).toLocaleDateString("en-BW", { day: "numeric", month: "short", year: "numeric" })}</span>
-                                                                    <span className="font-black text-slate-900">{formatPula(inv.amount)}</span>
-                                                                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
-                                                                        inv.status === "paid"    ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                                                        inv.status === "overdue" ? "bg-red-50 text-red-700 border-red-200" :
-                                                                                                   "bg-amber-50 text-amber-700 border-amber-200"
-                                                                    }`}>
-                                                                        {inv.status}
-                                                                    </span>
-                                                                    {inv.status !== "paid" && (
-                                                                        <button
-                                                                            onClick={async (e) => {
-                                                                                e.stopPropagation();
-                                                                                await markInvoiceAsPaid({ invoiceId: inv._id });
-                                                                                await pushNotification({
-                                                                                    recipientId: row.dealer._id,
-                                                                                    type: "billing",
-                                                                                    title: "Payment Confirmed",
-                                                                                    message: `Invoice ${inv.invoiceNumber} (${formatPula(inv.amount)}) has been manually marked as paid.`,
-                                                                                });
-                                                                            }}
-                                                                            className="flex items-center gap-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors"
+                                                        {[...row.overdue, ...row.pending, ...row.paid].length === 0 ? (
+                                                            <p className="text-sm text-slate-400">No invoices on record.</p>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                {[...row.overdue, ...row.pending, ...row.paid]
+                                                                    .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
+                                                                    .map(inv => (
+                                                                    <div key={inv._id} className="bg-white rounded-xl border border-slate-100 px-4 py-3 flex flex-wrap items-center gap-3 text-sm">
+                                                                        <span className="font-bold text-slate-800">{inv.invoiceNumber}</span>
+                                                                        {inv.description && (
+                                                                            <span className="text-[11px] text-slate-400 truncate max-w-[200px]">{inv.description}</span>
+                                                                        )}
+                                                                        <span className="text-slate-400 text-xs">{new Date(inv.dueDate).toLocaleDateString("en-BW", { day: "numeric", month: "short", year: "numeric" })}</span>
+                                                                        <span className="font-black text-slate-900 ml-auto">{formatPula(inv.amount)}</span>
+                                                                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                                                                            inv.status === "paid"    ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                                                            inv.status === "overdue" ? "bg-red-50 text-red-700 border-red-200" :
+                                                                                                       "bg-amber-50 text-amber-700 border-amber-200"
+                                                                        }`}>
+                                                                            {inv.status}
+                                                                        </span>
+                                                                        {inv.status !== "paid" && (
+                                                                            <button
+                                                                                onClick={async (e) => {
+                                                                                    e.stopPropagation();
+                                                                                    await markInvoiceAsPaid({ invoiceId: inv._id });
+                                                                                    await pushNotification({
+                                                                                        recipientId: row.dealer._id,
+                                                                                        type: "billing",
+                                                                                        title: "Payment Confirmed",
+                                                                                        message: `Invoice ${inv.invoiceNumber} (${formatPula(inv.amount)}) has been manually marked as paid.`,
+                                                                                    });
+                                                                                }}
+                                                                                className="flex items-center gap-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors"
+                                                                            >
+                                                                                <CheckCircle2 size={12} /> Mark Paid
+                                                                            </button>
+                                                                        )}
+                                                                        <a
+                                                                            href={`https://carplacebw.vercel.app/invoice?dealer=${encodeURIComponent(row.dealer.name)}&tin=${encodeURIComponent(row.dealer.bursTin || "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}${inv.description ? `&desc=${encodeURIComponent(inv.description)}` : ""}`}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            onClick={e => e.stopPropagation()}
+                                                                            className="flex items-center gap-1 text-xs font-bold text-white bg-slate-700 hover:bg-slate-800 px-3 py-1.5 rounded-lg transition"
                                                                         >
-                                                                            <CheckCircle2 size={12} /> Mark Paid
-                                                                        </button>
-                                                                    )}
-                                                                    <a
-                                                                        href={`https://carplacebw.vercel.app/invoice?dealer=${encodeURIComponent(row.dealer.name)}&tin=${encodeURIComponent(row.dealer.bursTin || "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        onClick={e => e.stopPropagation()}
-                                                                        className="flex items-center gap-1 text-xs font-bold text-white bg-slate-700 hover:bg-slate-800 px-3 py-1.5 rounded-lg transition"
-                                                                    >
-                                                                        <ExternalLink size={10} /> Download Invoice
-                                                                    </a>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                                                            <ExternalLink size={10} /> Download
+                                                                        </a>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
@@ -548,7 +894,7 @@ export default function AdminBillingPage() {
                     </section>
                 )}
 
-                {/* ── PARSER TAB ──────────────────────────────────────────────────────── */}
+                {/* ── PARSER TAB ────────────────────────────────────────────── */}
                 {activeTab === "parser" && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* CSV Input */}
@@ -640,37 +986,44 @@ export default function AdminBillingPage() {
                                                             value={selectedInvoiceIds[idx] || ""}
                                                             onChange={e => setSelectedInvoiceIds(p => ({ ...p, [idx]: e.target.value }))}
                                                         >
-                                                            <option value="">Select invoice to mark paid…</option>
+                                                            <option value="">Or pick invoice to pay…</option>
                                                             {pendingInvoices.map(inv => (
-                                                                <option key={inv._id} value={inv._id}>
-                                                                    {inv.invoiceNumber} — {formatPula(inv.amount)}
-                                                                </option>
+                                                                <option key={inv._id} value={inv._id}>{inv.invoiceNumber} — {formatPula(inv.amount)}</option>
                                                             ))}
                                                         </select>
                                                         <button
                                                             onClick={() => handleManualLink(idx)}
-                                                            className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 transition flex items-center gap-1.5"
+                                                            className="flex items-center gap-1 bg-red-600 text-white text-xs font-black px-4 py-2 rounded-lg hover:bg-red-700 transition"
                                                         >
-                                                            <PlusCircle size={14} /> Map & Pay
+                                                            <FileText size={13} /> Link &amp; Mark Paid
                                                         </button>
                                                         <button
                                                             onClick={() => handleManualMarkPaid(idx)}
-                                                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition flex items-center gap-1.5"
+                                                            disabled={!selectedInvoiceIds[idx]}
+                                                            className="flex items-center gap-1 bg-emerald-600 text-white text-xs font-black px-4 py-2 rounded-lg hover:bg-emerald-700 transition disabled:opacity-40"
                                                         >
-                                                            <CheckCircle2 size={14} /> Mark Paid
+                                                            <CheckCircle2 size={13} /> Mark Invoice Paid
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => handleConfirmMatch(idx)}
-                                                        className={`px-6 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-2 self-start ${
-                                                            row.confidence === "PERFECT"
-                                                                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                                : "bg-amber-600 hover:bg-amber-700 text-white"
-                                                        }`}
-                                                    >
-                                                        <CheckCircle2 size={15} /> Confirm & Mark Paid
-                                                    </button>
+                                                    <div className="flex flex-wrap gap-2 items-center">
+                                                        <p className="text-sm font-bold text-slate-600 flex-1">
+                                                            {row.confidence === "FUZZY" ? "Fuzzy match — " : ""}
+                                                            Matched to invoice {evaluatedRows[idx]?.matchedInvoiceId ? "found" : "not found"}
+                                                        </p>
+                                                        <button
+                                                            onClick={() => handleConfirmMatch(idx)}
+                                                            className="flex items-center gap-1 bg-emerald-600 text-white text-xs font-black px-4 py-2 rounded-lg hover:bg-emerald-700 transition"
+                                                        >
+                                                            <CheckCircle2 size={13} /> Confirm &amp; Mark Paid
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setEvaluatedRows(prev => prev.filter((_, i) => i !== idx))}
+                                                            className="flex items-center gap-1 border border-slate-200 text-slate-600 text-xs font-black px-4 py-2 rounded-lg hover:bg-slate-50 transition"
+                                                        >
+                                                            <X size={13} /> Skip
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         ))
@@ -681,6 +1034,22 @@ export default function AdminBillingPage() {
                     </div>
                 )}
             </main>
+
+            {/* ── Issue Invoice Modal ────────────────────────────────────────── */}
+            {showInvoiceModal && (
+                <IssueInvoicePanel
+                    dealers={dealers}
+                    approvedRequests={approvedRequests}
+                    prefillDealerId={prefillDealerId}
+                    onClose={() => { setShowInvoiceModal(false); setPrefillDealerId(undefined); }}
+                    onDone={() => {
+                        setShowInvoiceModal(false);
+                        setPrefillDealerId(undefined);
+                        setInvoiceSuccess("Invoice issued successfully and notification sent to the dealership.");
+                        setTimeout(() => setInvoiceSuccess(null), 6000);
+                    }}
+                />
+            )}
         </div>
     );
 }

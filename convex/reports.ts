@@ -55,6 +55,7 @@ export const submit = mutation({
             reporterUserId: identity?.subject,
             reporterEmail:  identity?.email,
             status:         "open",
+            updatedAt: Date.now(),
         });
 
         // Push notification to admins
@@ -160,6 +161,7 @@ export const updateStatus = mutation({
         await ctx.db.patch(args.id, {
             status:    args.status,
             adminNote: args.adminNote,
+            updatedAt: Date.now(),
         });
     },
 });

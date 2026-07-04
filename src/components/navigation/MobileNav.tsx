@@ -4,13 +4,16 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Search, Store, LayoutDashboard, Shield } from "lucide-react";
-import { useAuth, SignInButton, useUser, UserButton } from "@clerk/nextjs";
+import { useAuth, SignInButton, useUser, UserButton, useOrganizationList } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
 export default function MobileNav() {
-    const { isSignedIn, isLoaded: authLoaded, orgId } = useAuth();
+    const { isSignedIn, isLoaded: authLoaded } = useAuth();
     const { user } = useUser();
+    const { userMemberships, isLoaded: isMembershipsLoaded } = useOrganizationList({
+        userMemberships: true,
+    });
     const isGlobalAdmin = useQuery(api.dealerships.checkGlobalAdmin);
     const pathname = usePathname();
 
@@ -33,11 +36,14 @@ export default function MobileNav() {
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
+    const hasMemberships = isMembershipsLoaded && userMemberships.data && userMemberships.data.length > 0;
+    const canAccessDealer = isGlobalAdmin || (isSignedIn && hasMemberships);
+
     const tabs = [
         { href: "/", icon: Home, label: "Home", exact: true },
         { href: "/search", icon: Search, label: "Search" },
         { href: "/dealers", icon: Store, label: "Dealers" },
-        ...(authLoaded && isSignedIn ? [{ href: "/dashboard", icon: LayoutDashboard, label: "My Dealer" }] : []),
+        ...(authLoaded && canAccessDealer ? [{ href: "/dashboard", icon: LayoutDashboard, label: "My Dealer" }] : []),
         ...(isGlobalAdmin ? [{ href: "/admin", icon: Shield, label: "Admin" }] : []),
     ];
 
@@ -81,7 +87,7 @@ export default function MobileNav() {
             <NavLink href="/search" icon={Search} label="Search" />
             <NavLink href="/dealers" icon={Store} label="Dealers" />
 
-            {authLoaded && isSignedIn && (
+            {authLoaded && canAccessDealer && (
                 <NavLink href="/dashboard" icon={LayoutDashboard} label="My Dealer" />
             )}
 

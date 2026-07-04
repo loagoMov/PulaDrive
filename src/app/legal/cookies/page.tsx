@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Cookie, Shield, Eye, Database, Info, Mail } from "lucide-react";
 
 export const metadata = {
-    title: "Cookie Policy — CarPlace",
-    description: "Understand how CarPlace uses cookies and local storage to run our platform.",
+    title: "Cookie Policy — PulaDrive",
+    description: "Understand how PulaDrive uses cookies and local storage to run our platform.",
 };
 
 const Section = ({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) => (
@@ -33,7 +33,7 @@ export default function CookiePolicyPage() {
                     Effective date: <strong className="text-slate-700">2 July 2026</strong> · Last reviewed: <strong className="text-slate-700">2 July 2026</strong>
                 </p>
                 <p className="text-slate-600 leading-relaxed text-sm max-w-2xl">
-                    This Cookie Policy explains how CarPlace (Pty) Ltd ("we", "our", or "us") uses cookies, local storage, and similar technologies on our platform. In the spirit of privacy-first transparency, we keep our use of trackers to an absolute minimum.
+                    This Cookie Policy explains how PulaDrive (Pty) Ltd ("we", "our", or "us") uses cookies, local storage, and similar technologies on our platform. In the spirit of privacy-first transparency, we keep our use of trackers to an absolute minimum.
                 </p>
             </div>
 
@@ -98,8 +98,8 @@ export default function CookiePolicyPage() {
             <Section icon={Mail} title="5. Questions?">
                 <p>
                     If you have any questions about this Cookie Policy, feel free to contact our Data Protection Officer at{" "}
-                    <a href="mailto:privacy@carplace.co.bw" className="text-primary-600 hover:underline font-bold">
-                        privacy@carplace.co.bw
+                    <a href="mailto:privacy@puladrive.co.bw" className="text-primary-600 hover:underline font-bold">
+                        privacy@puladrive.co.bw
                     </a>.
                 </p>
             </Section>

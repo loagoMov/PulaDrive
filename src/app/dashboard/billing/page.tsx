@@ -1,15 +1,17 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useOrganization } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import NotificationCenter from "../../components/NotificationCenter";
 import {
     ChevronLeft, CreditCard, AlertTriangle, CheckCircle2,
-    Clock, FileText, TrendingUp, Wallet, CalendarDays, ExternalLink, Loader2
+    Clock, FileText, TrendingUp, Wallet, CalendarDays, ExternalLink, Loader2,
+    Layers, Zap, ArrowUpCircle, Star, Infinity as InfinityIcon, X, ChevronRight
 } from "lucide-react";
 import DealershipSelector from "@/components/dashboard/DealershipSelector";
+import { useState } from "react";
 
 function StatusBadge({ status }: { status: "pending" | "paid" | "overdue" }) {
     const styles = {
@@ -41,9 +43,195 @@ function daysLabel(dueDate: string) {
     return { text: `Due in ${diff}d`,                          color: "text-slate-500" };
 }
 
+const TIER_META = {
+    starter:   { label: "Starter",   color: "text-slate-700",  bg: "bg-slate-100",  border: "border-slate-200", price: "P 1,500", slots: 50 },
+    growth:    { label: "Growth",    color: "text-indigo-700", bg: "bg-indigo-50",  border: "border-indigo-200", price: "P 2,500", slots: 150 },
+    unlimited: { label: "Unlimited", color: "text-emerald-700",bg: "bg-emerald-50", border: "border-emerald-200", price: "P 3,500", slots: Infinity },
+} as const;
+
+type TierKey = keyof typeof TIER_META;
+
+// ── Upgrade / Extra Slot Request Modal ───────────────────────────────────────
+function UpgradeModal({
+    dealerId,
+    currentTier,
+    onClose,
+}: {
+    dealerId: string;
+    currentTier: TierKey;
+    onClose: () => void;
+}) {
+    const [tab, setTab] = useState<"upgrade" | "extra">("upgrade");
+    const [selectedTier, setSelectedTier] = useState<"growth" | "unlimited">("growth");
+    const [extraSlots, setExtraSlots] = useState(10);
+    const [message, setMessage] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [done, setDone] = useState(false);
+
+    const requestUpgrade = useMutation(api.subscriptions.requestUpgrade);
+    const extraCost = extraSlots * 200; // P200 per slot (display amount in Pula)
+
+    const handleSubmit = async () => {
+        setSubmitting(true);
+        try {
+            await requestUpgrade({
+                dealerId: dealerId as any,
+                requestType: tab === "upgrade" ? "upgrade_tier" : "extra_slots",
+                requestedTier: tab === "upgrade" ? selectedTier : undefined,
+                extraSlotsRequested: tab === "extra" ? extraSlots : undefined,
+                message: message || undefined,
+            });
+            setDone(true);
+        } catch (err: any) {
+            alert(err?.message || "Failed to submit request.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-primary-50 rounded-xl flex items-center justify-center">
+                            <ArrowUpCircle size={18} className="text-primary-600" />
+                        </div>
+                        <div>
+                            <p className="font-black text-slate-900 text-sm leading-none">Subscription Request</p>
+                            <p className="text-xs text-slate-400 mt-0.5">Request an upgrade or extra listing slots</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors">
+                        <X size={16} className="text-slate-500" />
+                    </button>
+                </div>
+
+                {done ? (
+                    <div className="px-6 py-12 flex flex-col items-center text-center gap-4">
+                        <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center">
+                            <CheckCircle2 size={32} className="text-emerald-500" />
+                        </div>
+                        <div>
+                            <p className="font-black text-slate-900">Request Submitted!</p>
+                            <p className="text-sm text-slate-500 mt-1">We'll review your request and get back to you shortly.</p>
+                        </div>
+                        <button onClick={onClose} className="btn-primary px-6 py-2.5 text-sm font-bold rounded-xl">Done</button>
+                    </div>
+                ) : (
+                    <div className="p-6 space-y-5">
+                        {/* Tabs */}
+                        <div className="flex bg-slate-100 rounded-2xl p-1 gap-1">
+                            {(["upgrade", "extra"] as const).map((t) => (
+                                <button
+                                    key={t}
+                                    onClick={() => setTab(t)}
+                                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${
+                                        tab === t ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                >
+                                    {t === "upgrade" ? "🚀 Upgrade Tier" : "➕ Extra Slots"}
+                                </button>
+                            ))}
+                        </div>
+
+                        {tab === "upgrade" ? (
+                            <div className="space-y-3">
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select target tier</p>
+                                {(["growth", "unlimited"] as const).filter(t => t !== currentTier && currentTier !== "unlimited").map((tier) => {
+                                    const meta = TIER_META[tier];
+                                    const isSelected = selectedTier === tier;
+                                    return (
+                                        <button
+                                            key={tier}
+                                            onClick={() => setSelectedTier(tier)}
+                                            className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                                                isSelected ? "border-primary-500 bg-primary-50" : "border-slate-100 hover:border-slate-200 bg-white"
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${meta.bg}`}>
+                                                    {tier === "unlimited" ? <InfinityIcon size={15} className={meta.color} /> : <Star size={15} className={meta.color} />}
+                                                </div>
+                                                <div className="text-left">
+                                                    <p className="font-black text-slate-900 text-sm">{meta.label}</p>
+                                                    <p className="text-xs text-slate-400">{tier === "unlimited" ? "Unlimited" : `${meta.slots} slots`} · {meta.price}/mo</p>
+                                                </div>
+                                            </div>
+                                            {isSelected && <div className="w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center"><CheckCircle2 size={12} className="text-white fill-white" /></div>}
+                                        </button>
+                                    );
+                                })}
+                                {currentTier === "unlimited" && (
+                                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-center">
+                                        <p className="text-sm font-black text-emerald-700">You&apos;re already on the Unlimited plan! 🎉</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider block mb-2">Number of extra slots</label>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setExtraSlots(Math.max(1, extraSlots - 1))}
+                                            className="w-10 h-10 rounded-xl border border-slate-200 font-black text-slate-600 hover:bg-slate-50 transition-colors"
+                                        >−</button>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={500}
+                                            value={extraSlots}
+                                            onChange={(e) => setExtraSlots(Math.max(1, Math.min(500, parseInt(e.target.value) || 1)))}
+                                            className="flex-1 text-center font-black text-slate-900 text-xl border border-slate-200 rounded-xl py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        />
+                                        <button
+                                            onClick={() => setExtraSlots(Math.min(500, extraSlots + 1))}
+                                            className="w-10 h-10 rounded-xl border border-slate-200 font-black text-slate-600 hover:bg-slate-50 transition-colors"
+                                        >+</button>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between">
+                                    <p className="text-xs font-bold text-slate-500">Cost (P 200 per slot)</p>
+                                    <p className="text-lg font-black text-slate-900">P {extraCost.toLocaleString()}</p>
+                                </div>
+                                <p className="text-[11px] text-slate-400">An invoice will be issued once the request is approved.</p>
+                            </div>
+                        )}
+
+                        {/* Optional message */}
+                        <div>
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider block mb-2">Note to admin (optional)</label>
+                            <textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                placeholder="Any details about your request..."
+                                rows={2}
+                                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder:text-slate-300"
+                            />
+                        </div>
+
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitting || (tab === "upgrade" && currentTier === "unlimited")}
+                            className="w-full btn-primary py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {submitting ? <Loader2 size={16} className="animate-spin" /> : <ArrowUpCircle size={16} />}
+                            {submitting ? "Submitting…" : "Submit Request"}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function DealerBillingPage() {
     const router = useRouter();
     const { organization } = useOrganization();
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     const dealership = useQuery(
         api.dealerships.getByClerkOrgId,
@@ -52,6 +240,16 @@ export default function DealerBillingPage() {
 
     const billing = useQuery(
         api.billing.getDealerBillingSummary,
+        dealership ? { dealerId: dealership._id } : "skip"
+    );
+
+    const slotStatus = useQuery(
+        api.subscriptions.getSubscriptionStatus,
+        dealership ? { dealerId: dealership._id } : "skip"
+    );
+
+    const upgradeRequests = useQuery(
+        api.subscriptions.getDealerUpgradeRequests,
         dealership ? { dealerId: dealership._id } : "skip"
     );
 
@@ -76,6 +274,10 @@ export default function DealerBillingPage() {
     const { pending, overdue, paid, totalOwed, totalPaid, upcoming, invoices } = billing;
     const accountStatus = dealership.accountStatus ?? "active";
     const isFrozen = accountStatus === "frozen";
+
+    const tier: TierKey = ((dealership as any).subscriptionTier ?? "starter") as TierKey;
+    const tierMeta = TIER_META[tier];
+    const pendingRequests = (upgradeRequests ?? []).filter((r: any) => r.status === "pending");
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -115,6 +317,141 @@ export default function DealerBillingPage() {
                                 Your account has been frozen due to outstanding payments. Please settle your balance to restore full access.
                             </p>
                         </div>
+                    </div>
+                )}
+
+                {/* ── Subscription & Listing Slots Card ─────────────────────── */}
+                {slotStatus && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                        {/* Card header */}
+                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Layers size={16} className="text-slate-400" />
+                                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Subscription & Listing Slots</p>
+                            </div>
+                            {pendingRequests.length > 0 && (
+                                <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                                    {pendingRequests.length} pending request{pendingRequests.length > 1 ? "s" : ""}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="p-5 sm:p-6 space-y-5">
+                            {/* Tier + Price */}
+                            <div className="flex items-start gap-4">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${tierMeta.bg} border ${tierMeta.border}`}>
+                                    {tier === "unlimited"
+                                        ? <InfinityIcon size={22} className={tierMeta.color} />
+                                        : tier === "growth"
+                                        ? <Zap size={22} className={tierMeta.color} />
+                                        : <Star size={22} className={tierMeta.color} />
+                                    }
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="font-black text-slate-900 text-lg leading-none">{tierMeta.label} Plan</p>
+                                        <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${tierMeta.bg} ${tierMeta.color} border ${tierMeta.border}`}>
+                                            {tier === "unlimited" ? "Unlimited slots" : `${TIER_META[tier].slots} slots`}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-slate-400 mt-1">{tierMeta.price} / month</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowUpgradeModal(true)}
+                                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black rounded-xl transition-colors"
+                                >
+                                    <ArrowUpCircle size={13} />
+                                    {tier === "unlimited" ? "Extra Slots" : "Upgrade"}
+                                </button>
+                            </div>
+
+                            {/* Slot progress */}
+                            {slotStatus.slotLimit !== Infinity ? (
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs font-bold text-slate-500">Listing slots used</p>
+                                        <p className={`text-xs font-black ${slotStatus.isAtLimit ? "text-red-600" : "text-slate-700"}`}>
+                                            {slotStatus.usedSlots} / {slotStatus.slotLimit}
+                                            {(slotStatus.slotLimit as number) > (TIER_META[tier].slots) && (
+                                                <span className="text-slate-400 font-bold ml-1">
+                                                    (incl. {(slotStatus.slotLimit as number) - TIER_META[tier].slots} extra)
+                                                </span>
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                slotStatus.isAtLimit
+                                                    ? "bg-red-500"
+                                                    : (slotStatus.usedSlots / (slotStatus.slotLimit as number)) > 0.8
+                                                    ? "bg-amber-400"
+                                                    : "bg-emerald-500"
+                                            }`}
+                                            style={{ width: `${Math.min(100, (slotStatus.usedSlots / (slotStatus.slotLimit as number)) * 100)}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-slate-400">
+                                        {slotStatus.isAtLimit
+                                            ? "⚠️ You've reached your slot limit. Upgrade or request extra slots to continue listing."
+                                            : `${slotStatus.remainingSlots} slot${(slotStatus.remainingSlots as number) === 1 ? "" : "s"} remaining`
+                                        }
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 bg-emerald-50 rounded-xl px-4 py-2.5 border border-emerald-100">
+                                    <CheckCircle2 size={15} className="text-emerald-500" />
+                                    <p className="text-xs font-bold text-emerald-700">Unlimited listing slots — list as many vehicles as you want!</p>
+                                </div>
+                            )}
+
+                            {/* Tier comparison hint */}
+                            {tier !== "unlimited" && (
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(["starter", "growth", "unlimited"] as const).map((t) => {
+                                        const m = TIER_META[t];
+                                        const isCurrent = t === tier;
+                                        return (
+                                            <div key={t} className={`p-3 rounded-xl border text-center transition-all ${isCurrent ? `${m.bg} ${m.border}` : "bg-slate-50 border-slate-100"}`}>
+                                                <p className={`text-[10px] font-black uppercase tracking-wider ${isCurrent ? m.color : "text-slate-400"}`}>{m.label}</p>
+                                                <p className={`text-xs font-black mt-0.5 ${isCurrent ? "text-slate-900" : "text-slate-500"}`}>
+                                                    {t === "unlimited" ? "∞" : `${m.slots}`}
+                                                </p>
+                                                <p className={`text-[10px] mt-0.5 ${isCurrent ? "text-slate-500" : "text-slate-400"}`}>{m.price}/mo</p>
+                                                {isCurrent && <p className={`text-[9px] font-black mt-1 ${m.color}`}>CURRENT</p>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Recent requests */}
+                        {upgradeRequests && upgradeRequests.length > 0 && (
+                            <div className="border-t border-slate-100 px-5 py-4 space-y-2">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Recent Requests</p>
+                                {upgradeRequests.slice(0, 3).map((req: any) => (
+                                    <div key={req._id} className="flex items-center justify-between py-1.5">
+                                        <div>
+                                            <p className="text-xs font-bold text-slate-700">
+                                                {req.requestType === "upgrade_tier"
+                                                    ? `Upgrade to ${req.requestedTier?.charAt(0).toUpperCase()}${req.requestedTier?.slice(1)}`
+                                                    : `${req.extraSlotsRequested} extra slots`
+                                                }
+                                            </p>
+                                            <p className="text-[10px] text-slate-400">{new Date(req.createdAt).toLocaleDateString("en-BW")}</p>
+                                        </div>
+                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                            req.status === "pending" ? "bg-amber-100 text-amber-700"
+                                            : req.status === "approved" ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-slate-100 text-slate-500"
+                                        }`}>
+                                            {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -159,7 +496,7 @@ export default function DealerBillingPage() {
                             <CreditCard className={isFrozen ? "text-red-500" : "text-primary-600"} size={24} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Subscription Status</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Account Status</p>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className={`w-2 h-2 rounded-full ${isFrozen ? "bg-red-500" : "bg-emerald-500 animate-pulse"}`} />
                                 <p className={`text-lg font-black ${isFrozen ? "text-red-700" : "text-slate-900"}`}>
@@ -320,6 +657,15 @@ export default function DealerBillingPage() {
                     )}
                 </section>
             </main>
+
+            {/* ── Upgrade Modal ──────────────────────────────────────────────── */}
+            {showUpgradeModal && dealership && (
+                <UpgradeModal
+                    dealerId={dealership._id}
+                    currentTier={tier}
+                    onClose={() => setShowUpgradeModal(false)}
+                />
+            )}
         </div>
     );
 }

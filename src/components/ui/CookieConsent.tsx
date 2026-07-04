@@ -45,7 +45,7 @@ export default function CookieConsent() {
           <div className="space-y-1">
             <h3 className="text-sm font-black text-slate-900 tracking-tight">Privacy & Storage Preferences</h3>
             <p className="text-xs text-slate-500 font-medium leading-relaxed pr-6">
-              We value your privacy. CarPlace only uses essential functional cookies for sign-in, and local storage to remember your wishlist. No advertising pixels or third-party tracking scripts are loaded.
+              We value your privacy. PulaDrive only uses essential functional cookies for sign-in, and local storage to remember your wishlist. No advertising pixels or third-party tracking scripts are loaded.
             </p>
           </div>
           <button 

@@ -21,4 +21,10 @@ crons.interval(
     internal.rateLimit.cleanupExpiredRateLimits
 );
 
+crons.interval(
+    "monitor subscription cycles and extra slots timeline",
+    { hours: 24 },
+    internal.subscription_crons.monitorSubscriptionCycles
+);
+
 export default crons;

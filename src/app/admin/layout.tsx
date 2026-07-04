@@ -39,7 +39,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <div className="space-y-2">
                         <h2 className="text-2xl font-black text-slate-900 tracking-tight">Access Denied</h2>
                         <p className="text-slate-500 font-medium text-sm">
-                            Only registered CarPlace global administrators can access this control panel.
+                            Only registered PulaDrive global administrators can access this control panel.
                         </p>
                     </div>
                     <div className="pt-2">

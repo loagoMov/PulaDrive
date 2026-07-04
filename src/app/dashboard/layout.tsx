@@ -61,6 +61,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         );
     }
 
+    // 1.5. Access Denied State (User has no dealership organizations and is not a global admin)
+    if (!isGlobalAdmin && isMembershipsLoaded && (!userMemberships.data || userMemberships.data.length === 0)) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+                <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl border border-slate-100 max-w-md w-full space-y-6 animate-in zoom-in-95 duration-200">
+                    <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto text-rose-500">
+                        <Shield size={40} />
+                    </div>
+                    <div className="space-y-2">
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Access Denied</h2>
+                        <p className="text-slate-500 font-medium text-sm">
+                            The Dealer Portal is restricted to verified dealerships. To gain access, you must be invited to a Dealership organization by an administrator.
+                        </p>
+                    </div>
+                    <div className="pt-4 flex flex-col gap-3">
+                        <a
+                            href={`mailto:loagomontsho@icloud.com?subject=PulaDrive%20Dealership%20Access%20Request`}
+                            className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-all text-sm block"
+                        >
+                            Request Verification / Invitation
+                        </a>
+                    </div>
+                </div>
+                <MobileNav />
+            </div>
+        );
+    }
+
     // 2. Setup Required State (No organization selected)
     if (!organization) {
         return (
@@ -73,7 +101,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div className="space-y-2">
                         <h2 className="text-2xl font-black text-slate-900 tracking-tight">Dealer Setup Required</h2>
                         <p className="text-slate-500 font-medium text-sm">
-                            To list cars on CarPlace, you must be invited to a Dealership organization by an administrator.
+                            To list cars on PulaDrive, you must be invited to a Dealership organization by an administrator.
                         </p>
                     </div>
 
@@ -110,7 +138,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div className="space-y-2">
                         <h2 className="text-2xl font-black text-slate-900 tracking-tight">Dealership Not Found</h2>
                         <p className="text-slate-500 font-medium text-sm">
-                            The CarPlace profile for <span className="font-black text-slate-800">{organization.name}</span> doesn&apos;t exist yet in our system.
+                            The PulaDrive profile for <span className="font-black text-slate-800">{organization.name}</span> doesn&apos;t exist yet in our system.
                             Click below to register it.
                         </p>
                     </div>
@@ -125,7 +153,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         {isRegistering ? (
                             <><Loader2 className="w-4 h-4 animate-spin" /> Registering...</>
                         ) : (
-                            "Register Dealership on CarPlace"
+                            "Register Dealership on PulaDrive"
                         )}
                     </button>
                 </div>

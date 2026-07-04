@@ -3,12 +3,13 @@ import { v, ConvexError } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { requireGlobalAdmin, isGlobalAdmin } from "./utils";
 
-export const generateInvoiceUrl = (dealerName: string, bursTin: string, invoiceNumber: string, amountPula?: number, dueDate?: string, description?: string) => {
+export const generateInvoiceUrl = (dealerName: string, bursTin: string, invoiceNumber: string, amountPula?: number, dueDate?: string, description?: string, subDescription?: string) => {
     // Builds a fully-qualified URL to the CarPlace invoice renderer
     const base = `https://carplacebw.vercel.app/invoice?dealer=${encodeURIComponent(dealerName)}&tin=${encodeURIComponent(bursTin)}&inv=${encodeURIComponent(invoiceNumber)}&vat=0`;
-    const withAmount = amountPula !== undefined ? `${base}&amount=${amountPula.toFixed(2)}` : base;
-    const withDue    = dueDate ? `${withAmount}&due=${encodeURIComponent(dueDate)}` : withAmount;
-    return description ? `${withDue}&desc=${encodeURIComponent(description)}` : withDue;
+    const withAmount  = amountPula     !== undefined ? `${base}&amount=${amountPula.toFixed(2)}` : base;
+    const withDue     = dueDate        ? `${withAmount}&due=${encodeURIComponent(dueDate)}` : withAmount;
+    const withDesc    = description    ? `${withDue}&desc=${encodeURIComponent(description)}` : withDue;
+    return subDescription ? `${withDesc}&subdesc=${encodeURIComponent(subDescription)}` : withDesc;
 };
 
 /**
@@ -22,7 +23,7 @@ export const generateInvoiceUrl = (dealerName: string, bursTin: string, invoiceN
  * - CODE    → 3-letter abbreviation of the dealer name (uppercased)
  * - SEQ     → 4-digit sequence of invoices issued this month for that dealer
  */
-function buildInvoiceNumber(dealerName: string, monthlySeq: number): string {
+export function buildInvoiceNumber(dealerName: string, monthlySeq: number): string {
     const now    = new Date();
     const year   = now.getFullYear();
     const month  = String(now.getMonth() + 1).padStart(2, "0");
@@ -153,7 +154,8 @@ export const linkManualAliasToDealer = mutation({
         const aliases = dealer.knownBankAliases || [];
         if (!aliases.includes(args.unmatchedReference)) {
             await ctx.db.patch(args.dealerId, {
-                knownBankAliases: [...aliases, args.unmatchedReference]
+                knownBankAliases: [...aliases, args.unmatchedReference],
+                updatedAt: Date.now(),
             });
         }
         
@@ -165,7 +167,7 @@ export const linkManualAliasToDealer = mutation({
             .first();
             
         if (invoice) {
-            await ctx.db.patch(invoice._id, { status: "paid" });
+            await ctx.db.patch(invoice._id, { status: "paid", updatedAt: Date.now() });
             return { success: true, invoiceId: invoice._id };
         }
         
@@ -177,7 +179,7 @@ export const markInvoiceAsPaid = mutation({
     args: { invoiceId: v.id("invoices") },
     handler: async (ctx, args) => {
         await requireGlobalAdmin(ctx);
-        await ctx.db.patch(args.invoiceId, { status: "paid" });
+        await ctx.db.patch(args.invoiceId, { status: "paid", updatedAt: Date.now() });
     }
 });
 
@@ -244,7 +246,7 @@ export const createMockInvoice = mutation({
         ).filter(i => (i.issuedAt ?? 0) >= monthStart).length;
 
         const invoiceNumber  = buildInvoiceNumber(dealer.name, monthlyCount + 1);
-        const description    = `CarPlace Dealer Subscription — ${now.toLocaleString("en-BW", { month: "long", year: "numeric" })}`;
+        const description    = `PulaDrive Dealer Subscription — ${now.toLocaleString("en-BW", { month: "long", year: "numeric" })}`;
         const issuedAt       = Date.now();
 
         // Due 7 days from now
@@ -264,6 +266,7 @@ export const createMockInvoice = mutation({
             issuedAt,
             dueDate:     dueDate.toISOString(),
             externalPdfUrl,
+            updatedAt: Date.now(),
         });
     }
 });
@@ -360,18 +363,17 @@ export const manualUpdateAccountStatus = mutation({
         const dealer = await ctx.db.get(args.dealerId);
         if (!dealer) throw new ConvexError("Dealership not found");
 
-        await ctx.db.patch(args.dealerId, { accountStatus: args.status });
+        await ctx.db.patch(args.dealerId, { accountStatus: args.status, updatedAt: Date.now() });
 
         // Push notification to the dealer
         await ctx.db.insert("notifications", {
             recipientId: args.dealerId,
             type: "account",
             title: args.status === "frozen" ? "Account Paused Manually" : "Account Reactivated",
-            message: args.status === "frozen"
-                ? "Your account has been manually paused by the administrator. Settle any overdue billing to reactivate."
-                : "Your account has been reactivated by the administrator.",
+            message: `Your account status has been changed to ${args.status}.`,
             isRead: false,
             createdAt: Date.now(),
+            updatedAt: Date.now(),
             actionUrl: "/dashboard/billing",
         });
     }
@@ -400,7 +402,7 @@ export const createOfficialInvoice = mutation({
 
         const invoiceNumber  = buildInvoiceNumber(dealer.name, monthlyCount + 1);
         const description    = args.description ||
-            `CarPlace Dealer Subscription — ${now.toLocaleString("en-BW", { month: "long", year: "numeric" })}`;
+            `PulaDrive Dealer Subscription — ${now.toLocaleString("en-BW", { month: "long", year: "numeric" })}`;
         const issuedAt       = Date.now();
         const tin            = dealer.bursTin || "000000000";
         const externalPdfUrl = generateInvoiceUrl(dealer.name, tin, invoiceNumber, args.amount / 100, args.dueDate, description);
@@ -415,6 +417,7 @@ export const createOfficialInvoice = mutation({
             issuedAt,
             dueDate:     args.dueDate,
             externalPdfUrl,
+            updatedAt: Date.now(),
         });
 
         // Notify the dealer
@@ -422,9 +425,10 @@ export const createOfficialInvoice = mutation({
             recipientId: args.dealerId,
             type:        "billing",
             title:       "New Invoice Issued",
-            message:     `Invoice ${invoiceNumber} for P ${(args.amount / 100).toFixed(2)} has been issued. Due: ${new Date(args.dueDate).toLocaleDateString("en-BW")}.`,
+            message:     `You have a new invoice (#${invoiceNumber}) for P${(args.amount / 100).toFixed(2)}. Due: ${args.dueDate}`,
             isRead:      false,
-            createdAt:   issuedAt,
+            createdAt:   Date.now(),
+            updatedAt:   Date.now(),
             actionUrl:   "/dashboard/billing",
         });
 

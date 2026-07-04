@@ -15,11 +15,52 @@ export default defineSchema({
         bursTin: v.optional(v.string()),
         accountStatus: v.optional(v.union(v.literal("active"), v.literal("frozen"))),
         knownBankAliases: v.optional(v.array(v.string())),
+        subscriptionTier: v.optional(v.union(
+            v.literal("starter"),
+            v.literal("growth"),
+            v.literal("unlimited")
+        )),
+        subscriptionTierStartDate: v.optional(v.number()), // epoch ms when current tier started/renewed
+        subscriptionTierLastInvoiced: v.optional(v.number()), // epoch ms when last monthly subscription invoice was generated
+        listingSlotOverride: v.optional(v.number()), // extra slots granted by admin on top of tier limit
+        extraSlotsExpiresAt: v.optional(v.number()), // epoch ms when extra slots expire (typically 30 days from purchase)
+        extraSlotsLastInvoiced: v.optional(v.number()), // epoch ms when extra slots were last invoiced
+        updatedAt: v.optional(v.number()),
     })
         .index("by_slug", ["slug"])
         .index("by_clerk_org_id", ["clerkOrgId"])
         .index("by_custom_id", ["clientCustomId"])
-        .index("by_account_status", ["accountStatus"]),
+        .index("by_account_status", ["accountStatus"])
+        .index("by_updated_at", ["updatedAt"]),
+
+    // ── Subscription upgrade / extra-slot requests ────────────────────────────
+    subscriptionUpgradeRequests: defineTable({
+        dealerId: v.id("dealerships"),
+        requestType: v.union(
+            v.literal("upgrade_tier"),   // requesting a higher tier
+            v.literal("extra_slots")     // requesting N extra slots at P200/slot
+        ),
+        requestedTier: v.optional(v.union(
+            v.literal("growth"),
+            v.literal("unlimited")
+        )),
+        extraSlotsRequested: v.optional(v.number()),  // number of additional slots
+        extraSlotsCost: v.optional(v.number()),        // total cost in cents (extraSlots * 20000)
+        message: v.optional(v.string()),               // optional note from dealer
+        status: v.union(
+            v.literal("pending"),
+            v.literal("approved"),
+            v.literal("dismissed")
+        ),
+        adminNote: v.optional(v.string()),
+        createdAt: v.number(),
+        resolvedAt: v.optional(v.number()),
+        updatedAt: v.optional(v.number()),
+    })
+        .index("by_dealer", ["dealerId"])
+        .index("by_status", ["status"])
+        .index("by_created_at", ["createdAt"])
+        .index("by_updated_at", ["updatedAt"]),
 
     invoices: defineTable({
         dealerId: v.id("dealerships"),
@@ -31,10 +72,12 @@ export default defineSchema({
         issuedAt: v.optional(v.number()),          // epoch ms — when admin issued the invoice (optional for legacy records)
         dueDate: v.string(),                       // ISO date string
         externalPdfUrl: v.string(),
+        updatedAt: v.optional(v.number()),
     })
         .index("by_dealer", ["dealerId"])
         .index("by_status", ["status"])
-        .index("by_due_date", ["dueDate"]),
+        .index("by_due_date", ["dueDate"])
+        .index("by_updated_at", ["updatedAt"]),
 
     notifications: defineTable({
         recipientId: v.union(v.id("dealerships"), v.literal("admin")),
@@ -48,11 +91,13 @@ export default defineSchema({
         isRead: v.boolean(),
         createdAt: v.number(),
         actionUrl: v.optional(v.string()),
+        updatedAt: v.optional(v.number()),
     })
         .index("by_recipient", ["recipientId"])
         .index("by_status", ["isRead"])
         .index("by_recipient_and_status", ["recipientId", "isRead"])
-        .index("by_created_at", ["createdAt"]),
+        .index("by_created_at", ["createdAt"])
+        .index("by_updated_at", ["updatedAt"]),
 
     vehicles: defineTable({
         dealerId: v.id("dealerships"),
@@ -85,11 +130,13 @@ export default defineSchema({
         // Concatenated field for fuzzy search across make + model
         searchText: v.optional(v.string()),
         featuredUntil: v.optional(v.number()),
+        updatedAt: v.optional(v.number()),
     })
         .index("by_dealer", ["dealerId"])
         .index("by_status", ["status"])
         .index("by_status_and_category", ["status", "category"])
         .index("by_status_and_featured_until", ["status", "featuredUntil"])
+        .index("by_updated_at", ["updatedAt"])
         .searchIndex("search_vehicles", {
             searchField: "searchText",
             filterFields: ["status"],
@@ -109,8 +156,10 @@ export default defineSchema({
         category:     v.optional(v.string()),
         color:        v.optional(v.string()),
         makeModel:    v.optional(v.string()),
+        updatedAt: v.optional(v.number()),
     })
-        .index("by_user", ["userId"]),
+        .index("by_user", ["userId"])
+        .index("by_updated_at", ["updatedAt"]),
 
     // ── Reports ──────────────────────────────────────────────────────────────
     reports: defineTable({
@@ -126,10 +175,12 @@ export default defineSchema({
             v.literal("dismissed")
         ),
         adminNote:      v.optional(v.string()),   // admin-only internal note
+        updatedAt: v.optional(v.number()),
     })
         .index("by_vehicle",  ["vehicleId"])
         .index("by_dealer",   ["dealerId"])
-        .index("by_status",   ["status"]),
+        .index("by_status",   ["status"])
+        .index("by_updated_at", ["updatedAt"]),
 
     featuredApplications: defineTable({
         vehicleId: v.id("vehicles"),
@@ -145,10 +196,12 @@ export default defineSchema({
             v.literal("revoked")
         ),
         appliedAt: v.number(),
+        updatedAt: v.optional(v.number()),
     })
         .index("by_status", ["status"])
         .index("by_dealer", ["dealerId"])
-        .index("by_vehicle", ["vehicleId"]),
+        .index("by_vehicle", ["vehicleId"])
+        .index("by_updated_at", ["updatedAt"]),
 
     // ── Rate limiting — token-bucket per user/action ──────────────────────────
     // CRIT-03 fix: Tracks request counts per (key, time window) to enforce
@@ -157,8 +210,10 @@ export default defineSchema({
         key: v.string(),          // e.g. "report:user:abc123" or "upload:user:xyz"
         count: v.number(),        // requests in current window
         windowStart: v.number(),  // epoch ms when the current window opened
+        updatedAt: v.optional(v.number()),
     })
-        .index("by_key", ["key"]),
+        .index("by_key", ["key"])
+        .index("by_updated_at", ["updatedAt"]),
 
     // ── Telemetry & Recommendation Pipeline ──────────────────────────────────
     telemetryLogs: defineTable({

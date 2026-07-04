@@ -61,7 +61,7 @@ export default function CarCard({ car }: { car: Car }) {
                         <p className="text-xl font-black text-primary-700">
                             P {car.price.toLocaleString()}
                         </p>
-                        <div className="flex items-center gap-4 text-[10px] text-slate-500 font-medium pt-2">
+                        <div className="flex items-center gap-4 text-[10px] text-slate-600 font-bold pt-2">
                             <span>{car.transmission || "Automatic"}</span>
                             <span>•</span>
                             <span>{car.fuelType || "Petrol"}</span>

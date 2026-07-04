@@ -11,7 +11,8 @@ function InvoiceContent() {
     const vatParam    = parseFloat(params.get("vat") || "0");
     const amount      = parseFloat(params.get("amount") || "0");
     const due         = params.get("due")         || new Date().toISOString();
-    const description = params.get("desc")        || `CarPlace Dealer Subscription — ${new Date().toLocaleString("en-BW", { month: "long", year: "numeric" })}`;
+    const description = params.get("desc")        || `PulaDrive Dealer Subscription — ${new Date().toLocaleString("en-BW", { month: "long", year: "numeric" })}`;
+    const subDescription = params.get("subdesc")  || "Monthly access to vehicle listings, leads, analytics & dealer tools";
 
     const issueDate = new Date().toLocaleDateString("en-BW", { day: "numeric", month: "long", year: "numeric" });
     const dueDate   = new Date(due).toLocaleDateString("en-BW", { day: "numeric", month: "long", year: "numeric" });
@@ -81,10 +82,10 @@ function InvoiceContent() {
                             <div className="flex items-center gap-2.5">
                                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md"
                                     style={{ background: `hsl(${accentHue},75%,48%)` }}>
-                                    CP
+                                    PD
                                 </div>
                                 <div>
-                                    <p className="text-xl font-black text-slate-900 tracking-tight leading-none">CarPlace</p>
+                                    <p className="text-xl font-black text-slate-900 tracking-tight leading-none">PulaDrive</p>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">Botswana</p>
                                 </div>
                             </div>
@@ -123,7 +124,7 @@ function InvoiceContent() {
                         </div>
                         <div className="text-right">
                             <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">Issued By</p>
-                            <p className="text-base font-black text-slate-900 leading-tight">CarPlace Botswana (Pty) Ltd</p>
+                            <p className="text-base font-black text-slate-900 leading-tight">PulaDrive Botswana (Pty) Ltd</p>
                             <div className="mt-2 space-y-1 text-[13px] text-slate-500">
                                 <p>VAT: <span className="font-bold text-slate-700">{vatParam === 0 ? "Exempt (≤ P500K)" : `${vatParam}%`}</span></p>
                                 <p>Gaborone, Botswana</p>
@@ -146,7 +147,7 @@ function InvoiceContent() {
                                 <tr className="border-b border-slate-100">
                                     <td className="py-5 pr-4">
                                         <p className="font-bold text-slate-900">{description}</p>
-                                        <p className="text-slate-400 text-xs mt-0.5">Monthly access to vehicle listings, leads, analytics &amp; dealer tools</p>
+                                        <p className="text-slate-400 text-xs mt-0.5">{subDescription}</p>
                                     </td>
                                     <td className="py-5 text-center font-semibold text-slate-600">1</td>
                                     <td className="py-5 text-right font-semibold text-slate-600">
@@ -227,7 +228,7 @@ function InvoiceContent() {
                     {/* Footer */}
                     <div className="px-12 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                         <p className="text-[11px] text-slate-400 leading-snug max-w-sm">
-                            This is an official CarPlace invoice. Queries? Email{" "}
+                            This is an official PulaDrive invoice. Queries? Email{" "}
                             <span className="font-semibold text-slate-600">support@carplacebw.vercel.app</span>
                         </p>
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">

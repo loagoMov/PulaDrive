@@ -2,15 +2,21 @@
 
 import Link from "next/link";
 import { MapPin, Shield } from "lucide-react";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth, useUser, useOrganizationList } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export default function Footer() {
     const { orgId, isLoaded: orgLoaded } = useAuth();
     const { user, isLoaded: userLoaded } = useUser();
+    const { userMemberships, isLoaded: isMembershipsLoaded } = useOrganizationList({
+        userMemberships: true,
+    });
+    const isGlobalAdmin = useQuery(api.dealerships.checkGlobalAdmin);
 
-    const emailSubject = encodeURIComponent("CarPlace Dealer Account Application");
+    const emailSubject = encodeURIComponent("PulaDrive Dealer Account Application");
     const emailBody = encodeURIComponent(
-        `Hello CarPlace Team,\n\nI would like to apply for a dealer account on CarPlace.\n\nMy Details:\n- Name: ${user?.fullName || ""}\n- Dealership/Company Name: \n- Contact Phone: \n- Account Email: ${user?.primaryEmailAddress?.emailAddress || ""}\n\nThank you.`
+        `Hello PulaDrive Team,\n\nI would like to apply for a dealer account on PulaDrive.\n\nMy Details:\n- Name: ${user?.fullName || ""}\n- Dealership/Company Name: \n- Contact Phone: \n- Account Email: ${user?.primaryEmailAddress?.emailAddress || ""}\n\nThank you.`
     );
     const mailtoLink = `mailto:loagomontsho@icloud.com?subject=${emailSubject}&body=${emailBody}`;
 
@@ -22,7 +28,7 @@ export default function Footer() {
                     {/* Brand */}
                     <div className="space-y-2">
                         <p className="text-xl font-black text-slate-900 tracking-tight">
-                             CarPlace<span className="text-primary-600">.</span>
+                             PulaDrive<span className="text-primary-600">.</span>
                         </p>
                         <p className="text-sm font-medium text-slate-500 flex items-center gap-1.5">
                             <MapPin size={13} className="text-primary-500 shrink-0" />
@@ -48,7 +54,7 @@ export default function Footer() {
                         <div className="space-y-3">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dealers</p>
                             <div className="space-y-2">
-                                {userLoaded && user ? (
+                                {isGlobalAdmin || (userLoaded && user && isMembershipsLoaded && userMemberships.data && userMemberships.data.length > 0) ? (
                                     <>
                                         <Link href="/dashboard" className="block font-medium text-slate-600 hover:text-primary-600 transition-colors">Dealer Portal</Link>
                                         <Link href="/dashboard/analytics" className="block font-medium text-slate-600 hover:text-primary-600 transition-colors">Analytics</Link>
@@ -75,7 +81,7 @@ export default function Footer() {
                 {/* Divider */}
                 <div className="border-t border-slate-100 mt-8 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <p className="text-xs text-slate-400 font-medium">
-                        © 2026 CarPlace (Pty) Ltd. All rights reserved. Built in 🇧🇼 Botswana.
+                        © 2026 PulaDrive (Pty) Ltd. All rights reserved. Built in 🇧🇼 Botswana.
                     </p>
                     <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
                         <Shield size={12} className="text-emerald-500" />

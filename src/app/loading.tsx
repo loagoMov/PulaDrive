@@ -13,7 +13,7 @@ export default function Loading() {
             </div>
             <div className="text-center space-y-2">
                 <p className="text-xl font-black text-slate-900 tracking-tight">
-                    CarPlace<span className="text-primary-600">.</span>
+                    PulaDrive<span className="text-primary-600">.</span>
                 </p>
                 <p className="text-xs font-semibold text-slate-400 animate-pulse">
                     Loading Botswana's premier digital car marketplace...

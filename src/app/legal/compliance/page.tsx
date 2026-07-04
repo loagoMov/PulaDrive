@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Database, Lock, Server, Users, Eye, Mail } from "lucide-react";
 
 export const metadata = {
-    title: "Data & Compliance — CarPlace",
-    description: "How CarPlace handles data processing, compliance, and your privacy rights in detail.",
+    title: "Data & Compliance — PulaDrive",
+    description: "How PulaDrive handles data processing, compliance, and your privacy rights in detail.",
 };
 
 const Section = ({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) => (
@@ -33,14 +33,14 @@ export default function CompliancePage() {
                     Effective date: <strong className="text-slate-700">25 June 2026</strong> · Last reviewed: <strong className="text-slate-700">2 July 2026</strong>
                 </p>
                 <p className="text-slate-600 leading-relaxed text-sm max-w-2xl">
-                    This document describes CarPlace's data processing architecture, the third-party infrastructure providers we rely on, our internal compliance practices, and the obligations of dealerships using our platform. It supplements our <Link href="/legal/privacy" className="text-primary-600 hover:underline font-bold">Privacy Policy</Link>.
+                    This document describes PulaDrive's data processing architecture, the third-party infrastructure providers we rely on, our internal compliance practices, and the obligations of dealerships using our platform. It supplements our <Link href="/legal/privacy" className="text-primary-600 hover:underline font-bold">Privacy Policy</Link>.
                 </p>
             </div>
 
             {/* 1. Data processing principles */}
             <Section icon={Database} title="1. Data Processing Principles">
                 <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                    CarPlace processes personal data in accordance with the <strong>Botswana Data Protection Act, 2018</strong> and adopts internationally recognised principles aligned with GDPR best practices:
+                    PulaDrive processes personal data in accordance with the <strong>Botswana Data Protection Act, 2018</strong> and adopts internationally recognised principles aligned with GDPR best practices:
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
@@ -62,7 +62,7 @@ export default function CompliancePage() {
             {/* 2. Infrastructure */}
             <Section icon={Server} title="2. Infrastructure & Sub-Processors">
                 <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                    CarPlace relies on the following trusted, industry-standard sub-processors. Each has been evaluated for security and compliance:
+                    PulaDrive relies on the following trusted, industry-standard sub-processors. Each has been evaluated for security and compliance:
                 </p>
                 <div className="space-y-3">
                     {[
@@ -75,13 +75,13 @@ export default function CompliancePage() {
                         {
                             name: "Clerk",
                             role: "Authentication & Identity",
-                            detail: "User sign-in, session management, and organization management is handled by Clerk. Clerk stores credentials securely and does not share them with CarPlace. Clerk is SOC 2 Type II certified and GDPR compliant.",
+                            detail: "User sign-in, session management, and organization management is handled by Clerk. Clerk stores credentials securely and does not share them with PulaDrive. Clerk is SOC 2 Type II certified and GDPR compliant.",
                             link: "https://clerk.com/privacy",
                         },
                         {
                             name: "Vercel",
                             role: "Web Hosting & Edge Network",
-                            detail: "CarPlace's web application is hosted on Vercel's global edge network. Vercel does not process personal user data beyond standard HTTP request logs needed for operation.",
+                            detail: "PulaDrive's web application is hosted on Vercel's global edge network. Vercel does not process personal user data beyond standard HTTP request logs needed for operation.",
                             link: "https://vercel.com/legal/privacy-policy",
                         },
                         {
@@ -116,7 +116,7 @@ export default function CompliancePage() {
             {/* 3. Telemetry */}
             <Section icon={Eye} title="3. Telemetry & Analytics Transparency">
                 <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                    CarPlace uses a first-party telemetry system (built on Convex) to track user behaviour. Here is exactly what we track and why:
+                    PulaDrive uses a first-party telemetry system (built on Convex) to track user behaviour. Here is exactly what we track and why:
                 </p>
                 <div className="overflow-hidden rounded-2xl border border-slate-200">
                     <table className="w-full text-sm">
@@ -146,22 +146,22 @@ export default function CompliancePage() {
                     </table>
                 </div>
                 <p className="text-xs text-slate-400 font-medium mt-3">
-                    * No third-party tracking scripts (Google Analytics, Meta Pixel, etc.) are loaded on CarPlace. All telemetry is first-party only.
+                    * No third-party tracking scripts (Google Analytics, Meta Pixel, etc.) are loaded on PulaDrive. All telemetry is first-party only.
                 </p>
             </Section>
 
             {/* 4. Dealer obligations */}
             <Section icon={Users} title="4. Dealer Data Obligations">
                 <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                    Dealers who use CarPlace to list vehicles take on specific data responsibilities:
+                    Dealers who use PulaDrive to list vehicles take on specific data responsibilities:
                 </p>
                 <ul className="space-y-2">
                     {[
                         "Dealers must not upload or display personal data of third parties (e.g. previous owner names, ID numbers) in listings or images.",
                         "Dealers are solely responsible for obtaining consent from any individuals depicted in uploaded photos.",
-                        "WhatsApp numbers submitted to CarPlace are displayed to prospective buyers — dealers must ensure these numbers are correct and that the number's owner consents to receiving vehicle enquiries.",
+                        "WhatsApp numbers submitted to PulaDrive are displayed to prospective buyers — dealers must ensure these numbers are correct and that the number's owner consents to receiving vehicle enquiries.",
                         "Dealers may access anonymised analytics about their own listings only. Individual buyer identities are never disclosed to dealers.",
-                        "Dealers must not attempt to use CarPlace infrastructure to collect or aggregate buyer data for external marketing.",
+                        "Dealers must not attempt to use PulaDrive infrastructure to collect or aggregate buyer data for external marketing.",
                     ].map((item, i) => (
                         <li key={i} className="flex items-start gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-100">
                             <span className="w-5 h-5 bg-primary-100 rounded-full flex items-center justify-center text-[10px] font-black text-primary-600 shrink-0 mt-0.5">{i + 1}</span>
@@ -185,7 +185,7 @@ export default function CompliancePage() {
                         { measure: "HTTP Security Headers", detail: "All responses include X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Strict-Transport-Security (production), Referrer-Policy: no-referrer, Permissions-Policy, Content-Security-Policy, Cross-Origin-Resource-Policy, and X-Permitted-Cross-Domain-Policies headers." },
                         { measure: "Cache Data Isolation", detail: "Upstash Redis only ever stores anonymised, non-personal search filter parameters with automatic 5-minute TTL expiration. User identity data is never written to the cache layer." },
                         { measure: "Incident Response", detail: "In the event of a data breach, we will notify affected users within 72 hours of discovery, as required by applicable law." },
-                        { measure: "No Password Storage", detail: "CarPlace never stores passwords. Authentication is delegated entirely to Clerk." },
+                        { measure: "No Password Storage", detail: "PulaDrive never stores passwords. Authentication is delegated entirely to Clerk." },
                     ].map((item) => (
                         <div key={item.measure} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
                             <div className="flex items-center gap-2">
@@ -201,12 +201,12 @@ export default function CompliancePage() {
             {/* 6. Contact */}
             <Section icon={Mail} title="6. Data Requests & DPO Contact">
                 <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                    CarPlace has designated a Data Protection Officer (DPO) as required under the Botswana Data Protection Act. All data subject requests, compliance enquiries, and breach notifications should be directed to:
+                    PulaDrive has designated a Data Protection Officer (DPO) as required under the Botswana Data Protection Act. All data subject requests, compliance enquiries, and breach notifications should be directed to:
                 </p>
                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2 text-sm">
-                    <p className="font-black text-slate-900">CarPlace Data Protection Officer</p>
-                    <p className="text-slate-600 font-medium">Email: <a href="mailto:privacy@carplace.co.bw" className="text-primary-600 hover:underline">privacy@carplace.co.bw</a></p>
-                    <p className="text-slate-600 font-medium">General support: <a href="mailto:support@carplace.co.bw" className="text-primary-600 hover:underline">support@carplace.co.bw</a></p>
+                    <p className="font-black text-slate-900">PulaDrive Data Protection Officer</p>
+                    <p className="text-slate-600 font-medium">Email: <a href="mailto:privacy@puladrive.co.bw" className="text-primary-600 hover:underline">privacy@puladrive.co.bw</a></p>
+                    <p className="text-slate-600 font-medium">General support: <a href="mailto:support@puladrive.co.bw" className="text-primary-600 hover:underline">support@puladrive.co.bw</a></p>
                     <p className="text-slate-400 text-xs mt-2">Response time: within <strong>30 calendar days</strong> of receipt. For urgent security matters, mark your email subject line with [URGENT].</p>
                 </div>
             </Section>

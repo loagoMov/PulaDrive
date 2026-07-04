@@ -20,7 +20,7 @@ export default function Home() {
     const [queryText, setQueryText] = useState("");
     const [activeTab, setActiveTab] = useState<"explore" | "foryou">("explore");
     const { userId, isSignedIn } = useAuth();
-    const targetId = isSignedIn ? (userId || "") : (typeof window !== "undefined" ? localStorage.getItem("carplace_anon_id") || "" : "");
+    const targetId = isSignedIn ? (userId || "") : (typeof window !== "undefined" ? localStorage.getItem("puladrive_anon_id") || "" : "");
 
     const vehicles = useQuery(api.vehicles.list, {});
     const forYouVehicles = useQuery(api.vehicles.getForYouFeed, { targetId: targetId || undefined });
@@ -39,7 +39,7 @@ export default function Home() {
                 <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                            CarPlace<span className="text-primary-600">.</span>
+                            PulaDrive<span className="text-primary-600">.</span>
                         </h1>
                         <p className="text-slate-500 text-sm font-medium flex items-center gap-1">
                             <MapPin size={14} className="text-primary-500" /> Gaborone, Botswana

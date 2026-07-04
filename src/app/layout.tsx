@@ -9,8 +9,8 @@ import CookieConsent from "@/components/ui/CookieConsent";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-    title: "CarPlace — Find Your Next Car in Botswana",
-    description: "CarPlace is Botswana's premier digital car marketplace connecting buyers with trusted dealerships in Gaborone and across the country.",
+    title: "PulaDrive — Find Your Next Car in Botswana",
+    description: "PulaDrive is Botswana's premier digital car marketplace connecting buyers with trusted dealerships in Gaborone and across the country.",
 };
 
 // Required for env(safe-area-inset-*) CSS variables to work on iOS

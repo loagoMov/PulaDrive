@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { UserButton, useOrganization, useUser } from "@clerk/nextjs";
 import MobileNav from "@/components/navigation/MobileNav";
-import { Plus, TrendingUp, Car, Loader2, Flame, Users, Trash2, Phone, CreditCard, AlertCircle, Shield } from "lucide-react";
+import { Plus, TrendingUp, Car, Loader2, Flame, Users, Trash2, Phone, CreditCard, AlertCircle, Shield, Layers } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import NotificationCenter from "../components/NotificationCenter";
@@ -31,6 +31,7 @@ export default function DealerDashboard() {
 
     const dealership = useQuery(api.dealerships.getByClerkOrgId, organization ? { clerkOrgId: organization.id } : "skip");
     const vehicles = useQuery(api.vehicles.getByDealerId, dealership && dealership !== null ? { dealerId: dealership._id } : "skip");
+    const slotStatus = useQuery(api.subscriptions.getSubscriptionStatus, dealership ? { dealerId: dealership._id } : "skip");
     const isGlobalAdmin = useQuery(api.dealerships.checkGlobalAdmin);
     const updateAuthorizedEmails = useMutation(api.dealerships.updateAuthorizedEmails);
     const updatePhone = useMutation(api.dealerships.updatePhone);
@@ -207,19 +208,66 @@ export default function DealerDashboard() {
                 <section className="space-y-4">
                     <div className="flex justify-between items-center">
                         <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Vehicle Inventory</h2>
-                        <button
-                            onClick={() => {
-                                if (dealership?.accountStatus === "frozen") {
-                                    setShowFrozenModal(true);
-                                } else {
-                                    setShowAddVehicle(true);
-                                }
-                            }}
-                            className="btn-primary touch-target no-tap-highlight flex items-center gap-2 py-2 px-4 text-sm"
-                        >
-                            <Plus size={16} /> <span className="hidden xs:inline">Add Vehicle</span><span className="xs:hidden">Add</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* Slot usage pill */}
+                            {slotStatus && (
+                                <Link
+                                    href="/dashboard/billing"
+                                    className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
+                                        slotStatus.isAtLimit
+                                            ? "bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
+                                            : slotStatus.remainingSlots !== Infinity && (slotStatus.remainingSlots as number) <= 5
+                                            ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                                    }`}
+                                >
+                                    <Layers size={12} />
+                                    {slotStatus.slotLimit === Infinity
+                                        ? `${slotStatus.usedSlots} listings`
+                                        : `${slotStatus.usedSlots} / ${slotStatus.slotLimit} slots`
+                                    }
+                                </Link>
+                            )}
+                            <button
+                                onClick={() => {
+                                    if (dealership?.accountStatus === "frozen") {
+                                        setShowFrozenModal(true);
+                                    } else if (slotStatus?.isAtLimit) {
+                                        alert(`You've reached your ${slotStatus.slotLimit}-slot limit on the ${slotStatus.tier.charAt(0).toUpperCase() + slotStatus.tier.slice(1)} plan. Go to Billing to request more slots or upgrade.`);
+                                    } else {
+                                        setShowAddVehicle(true);
+                                    }
+                                }}
+                                disabled={slotStatus?.isAtLimit === true}
+                                title={slotStatus?.isAtLimit ? `Slot limit reached (${slotStatus.slotLimit}). Upgrade to add more.` : "Add a new vehicle"}
+                                className={`btn-primary touch-target no-tap-highlight flex items-center gap-2 py-2 px-4 text-sm ${
+                                    slotStatus?.isAtLimit ? "opacity-60 cursor-not-allowed" : ""
+                                }`}
+                            >
+                                <Plus size={16} /> <span className="hidden xs:inline">Add Vehicle</span><span className="xs:hidden">Add</span>
+                            </button>
+                        </div>
                     </div>
+                    {/* Slot limit warning banner */}
+                    {slotStatus?.isAtLimit && (
+                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+                            <AlertCircle size={16} className="text-amber-600 shrink-0" />
+                            <p className="text-xs font-bold text-amber-800">
+                                You've used all {slotStatus.slotLimit} listing slots on your {slotStatus.tier.charAt(0).toUpperCase() + slotStatus.tier.slice(1)} plan.{" "}
+                                <Link href="/dashboard/billing" className="underline hover:text-amber-900">Request more slots or upgrade →</Link>
+                            </p>
+                        </div>
+                    )}
+                    {/* Low slot warning */}
+                    {slotStatus && !slotStatus.isAtLimit && slotStatus.slotLimit !== Infinity && (slotStatus.remainingSlots as number) <= 5 && (slotStatus.remainingSlots as number) > 0 && (
+                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+                            <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                            <p className="text-xs font-bold text-amber-700">
+                                Only {slotStatus.remainingSlots} listing slot{(slotStatus.remainingSlots as number) === 1 ? "" : "s"} remaining.{" "}
+                                <Link href="/dashboard/billing" className="underline hover:text-amber-800">Upgrade or request more →</Link>
+                            </p>
+                        </div>
+                    )}
 
                     {/* ── Desktop Table (md+) ─────────────────────────────────── */}
                     <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">

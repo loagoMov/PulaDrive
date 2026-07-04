@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -111,6 +111,39 @@ http.route({
         headers: {
           "Content-Type": "application/json",
         },
+      });
+    } catch (err: any) {
+      return new Response("Bad Request: " + err.message, { status: 400 });
+    }
+  }),
+});
+
+http.route({
+  path: "/api/export-table",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const url = new URL(request.url);
+    const secret = url.searchParams.get("secret") || "";
+    const expectedSecret = process.env.MOTHERDUCK_SYNC_SECRET;
+    if (!expectedSecret || !timingSafeEqual(secret, expectedSecret)) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    
+    const table = url.searchParams.get("table");
+    if (!table) {
+      return new Response("Bad Request: table parameter required", { status: 400 });
+    }
+
+    const sinceStr = url.searchParams.get("since") || "0";
+    const since = parseInt(sinceStr, 10) || 0;
+    const limit = parseInt(url.searchParams.get("limit") || "1000", 10);
+    const cursor = url.searchParams.get("cursor") || undefined;
+
+    try {
+      const data = await ctx.runQuery(api.sync.getExportData, { table, since, limit, cursor });
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
       });
     } catch (err: any) {
       return new Response("Bad Request: " + err.message, { status: 400 });

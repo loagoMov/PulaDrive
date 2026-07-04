@@ -49,7 +49,7 @@ export default function DealersPage() {
                     <div className="space-y-2 max-w-sm">
                         <h3 className="text-2xl font-black text-slate-900">No Dealerships Yet</h3>
                         <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                            CarPlace is growing — dealerships are being onboarded. Check back soon or register your own showroom.
+                            PulaDrive is growing — dealerships are being onboarded. Check back soon or register your own showroom.
                         </p>
                     </div>
 

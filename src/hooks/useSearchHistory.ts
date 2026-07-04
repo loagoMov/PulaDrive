@@ -4,7 +4,7 @@
  * useSearchHistory
  *
  * Signed-in users  → Convex `searchHistory` table (synced across devices)
- * Guest users      → localStorage key "carplace_search_history" (up to 10 entries)
+ * Guest users      → localStorage key "puladrive_search_history" (up to 10 entries)
  */
 
 import { useQuery, useMutation } from "convex/react";
@@ -29,7 +29,7 @@ export interface SearchEntry {
     savedAt?: number;   // local-only timestamp
 }
 
-const LOCAL_KEY = "carplace_search_history";
+const LOCAL_KEY = "puladrive_search_history";
 const MAX_LOCAL = 10;
 
 function readLocal(): SearchEntry[] {
