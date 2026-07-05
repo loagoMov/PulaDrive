@@ -871,7 +871,7 @@ export default function AdminBillingPage() {
                                                                             </button>
                                                                         )}
                                                                         <a
-                                                                            href={`https://carplacebw.vercel.app/invoice?dealer=${encodeURIComponent(row.dealer.name)}&tin=${encodeURIComponent(row.dealer.bursTin || "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}${inv.description ? `&desc=${encodeURIComponent(inv.description)}` : ""}`}
+                                                                            href={`/invoice?dealer=${encodeURIComponent(row.dealer.name)}&tin=${encodeURIComponent(row.dealer.bursTin || "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}${inv.description ? `&desc=${encodeURIComponent(inv.description)}` : ""}`}
                                                                             target="_blank"
                                                                             rel="noopener noreferrer"
                                                                             onClick={e => e.stopPropagation()}
