@@ -152,7 +152,7 @@ export const sendAdminNotification = internalAction({
 
         try {
             const { data, error } = await resend.emails.send({
-                from: "CarPlace Alerts <onboarding@resend.dev>",
+                from: "PulaDrive <support@puladrive.com>",
                 to: adminEmails,
                 subject,
                 html: htmlContent,
