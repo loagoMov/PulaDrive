@@ -5,7 +5,8 @@ import { requireGlobalAdmin, isGlobalAdmin } from "./utils";
 
 export const generateInvoiceUrl = (dealerName: string, bursTin: string, invoiceNumber: string, amountPula?: number, dueDate?: string, description?: string, subDescription?: string) => {
     // Builds a fully-qualified URL to the CarPlace invoice renderer
-    const base = `https://carplacebw.vercel.app/invoice?dealer=${encodeURIComponent(dealerName)}&tin=${encodeURIComponent(bursTin)}&inv=${encodeURIComponent(invoiceNumber)}&vat=0`;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://puladrive.com";
+    const base = `${siteUrl}/invoice?dealer=${encodeURIComponent(dealerName)}&tin=${encodeURIComponent(bursTin)}&inv=${encodeURIComponent(invoiceNumber)}&vat=0`;
     const withAmount  = amountPula     !== undefined ? `${base}&amount=${amountPula.toFixed(2)}` : base;
     const withDue     = dueDate        ? `${withAmount}&due=${encodeURIComponent(dueDate)}` : withAmount;
     const withDesc    = description    ? `${withDue}&desc=${encodeURIComponent(description)}` : withDue;

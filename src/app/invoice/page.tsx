@@ -90,7 +90,7 @@ function InvoiceContent() {
                                 </div>
                             </div>
                             <div className="pt-3 text-xs text-slate-400 space-y-0.5">
-                                <p>carplacebw.vercel.app</p>
+                                <p>puladrive.com</p>
                                 <p>Gaborone, Botswana</p>
                             </div>
                         </div>
@@ -229,10 +229,10 @@ function InvoiceContent() {
                     <div className="px-12 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                         <p className="text-[11px] text-slate-400 leading-snug max-w-sm">
                             This is an official PulaDrive invoice. Queries? Email{" "}
-                            <span className="font-semibold text-slate-600">support@carplacebw.vercel.app</span>
+                            <span className="font-semibold text-slate-600">support@puladrive.com</span>
                         </p>
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            carplacebw.vercel.app
+                            puladrive.com
                         </div>
                     </div>
 

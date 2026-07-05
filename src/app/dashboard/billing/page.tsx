@@ -552,7 +552,7 @@ export default function DealerBillingPage() {
                                             <StatusBadge status={inv.status} />
                                             <span className="text-base sm:text-lg font-black text-slate-900">{formatPula(inv.amount)}</span>
                                             <a
-                                                href={`https://carplacebw.vercel.app/invoice?dealer=${encodeURIComponent(dealership?.name ?? "")}&tin=${encodeURIComponent(dealership?.bursTin ?? "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}`}
+                                                href={`/invoice?dealer=${encodeURIComponent(dealership?.name ?? "")}&tin=${encodeURIComponent(dealership?.bursTin ?? "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="touch-target no-tap-highlight flex items-center gap-1 text-xs font-bold text-primary-600 hover:underline"
@@ -604,7 +604,7 @@ export default function DealerBillingPage() {
                                                 <td className="px-5 py-4"><StatusBadge status={inv.status} /></td>
                                                 <td className="px-5 py-4 text-right">
                                                     <a
-                                                        href={`https://carplacebw.vercel.app/invoice?dealer=${encodeURIComponent(dealership?.name ?? "")}&tin=${encodeURIComponent(dealership?.bursTin ?? "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}`}
+                                                        href={`/invoice?dealer=${encodeURIComponent(dealership?.name ?? "")}&tin=${encodeURIComponent(dealership?.bursTin ?? "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="inline-flex items-center gap-1 text-xs font-bold text-primary-600 hover:underline"
@@ -643,7 +643,7 @@ export default function DealerBillingPage() {
                                             <StatusBadge status={inv.status} />
                                         </div>
                                         <a
-                                            href={`https://carplacebw.vercel.app/invoice?dealer=${encodeURIComponent(dealership?.name ?? "")}&tin=${encodeURIComponent(dealership?.bursTin ?? "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}`}
+                                            href={`/invoice?dealer=${encodeURIComponent(dealership?.name ?? "")}&tin=${encodeURIComponent(dealership?.bursTin ?? "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="touch-target no-tap-highlight text-primary-600 flex-shrink-0"
