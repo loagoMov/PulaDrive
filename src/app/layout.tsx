@@ -9,8 +9,45 @@ import CookieConsent from "@/components/ui/CookieConsent";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-    title: "PulaDrive — Find Your Next Car in Botswana",
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://puladrive.com"),
+    title: {
+        default: "PulaDrive — Find Your Next Car in Botswana",
+        template: "%s | PulaDrive"
+    },
     description: "PulaDrive is Botswana's premier digital car marketplace connecting buyers with trusted dealerships in Gaborone and across the country.",
+    keywords: ["cars for sale Botswana", "buy car Gaborone", "PulaDrive", "Botswana car marketplace", "dealerships Gaborone", "used cars Botswana"],
+    authors: [{ name: "PulaDrive Team" }],
+    creator: "PulaDrive",
+    publisher: "PulaDrive",
+    alternates: {
+        canonical: "/",
+    },
+    openGraph: {
+        type: "website",
+        locale: "en_BW",
+        url: "https://puladrive.com",
+        title: "PulaDrive — Find Your Next Car in Botswana",
+        description: "PulaDrive is Botswana's premier digital car marketplace connecting buyers with trusted dealerships in Gaborone and across the country.",
+        siteName: "PulaDrive",
+        images: [
+            {
+                url: "/logo.png",
+                width: 1200,
+                height: 630,
+                alt: "PulaDrive Botswana Car Marketplace",
+            }
+        ]
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "PulaDrive — Find Your Next Car in Botswana",
+        description: "PulaDrive is Botswana's premier digital car marketplace connecting buyers with trusted dealerships in Gaborone and across the country.",
+        images: ["/logo.png"],
+    },
+    robots: {
+        index: true,
+        follow: true,
+    }
 };
 
 // Required for env(safe-area-inset-*) CSS variables to work on iOS
