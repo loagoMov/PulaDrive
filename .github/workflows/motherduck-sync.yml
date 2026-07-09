@@ -2,7 +2,7 @@ name: Daily MotherDuck Sync
 
 on:
   schedule:
-    # Run daily at 1:00 AM UTC
+    # Run daily at 1:00 AM UTC (3:00 AM Gaborone time, off-peak hours)
     - cron: '0 1 * * *'
   workflow_dispatch:
     # Allow manual triggering from the GitHub Actions UI
