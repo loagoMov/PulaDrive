@@ -6,10 +6,11 @@ import MobileNav from "@/components/navigation/MobileNav";
 import CarCard from "@/components/ui/CarCard";
 import { SkeletonGrid } from "@/components/ui/SkeletonLoader";
 import { Search as SearchIcon, X, SlidersHorizontal, Car, Sparkles } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 const CATEGORIES = [
     { id: "all", label: "All Vehicles" },
@@ -69,6 +70,23 @@ function SearchContent() {
         category: selectedCategory === "all" ? undefined : selectedCategory,
         targetPrice: debouncedTargetPrice,
     });
+
+    const { capture } = useAnalytics();
+    const prevFiltersRef = useRef<string>("");
+
+    // Track search_performed once results are ready and filters have changed
+    useEffect(() => {
+        if (vehicles === undefined) return; // still loading
+        const filterKey = JSON.stringify({ debouncedQuery, selectedCategory, debouncedTargetPrice });
+        if (filterKey === prevFiltersRef.current) return; // de-dupe rapid re-renders
+        prevFiltersRef.current = filterKey;
+        capture("search_performed", {
+            query: debouncedQuery || undefined,
+            category: selectedCategory !== "all" ? selectedCategory : undefined,
+            target_price: debouncedTargetPrice,
+            result_count: vehicles.length,
+        });
+    }, [vehicles, debouncedQuery, selectedCategory, debouncedTargetPrice, capture]);
 
     return (
         <>

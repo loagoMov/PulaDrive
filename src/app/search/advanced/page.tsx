@@ -9,7 +9,8 @@ import { motion } from "framer-motion";
 import {
     ChevronRight, ChevronLeft, Search, Sparkles, Car,
     Gauge, Fuel, Settings2, Palette, BadgeDollarSign, CalendarRange,
-    X, Clock, Trash2, ArrowRight, MapPin,
+    X, Clock, Trash2, ArrowRight, MapPin, Zap, Leaf, Droplets,
+    Circle, RefreshCw, BadgeDollarSign as BudgetIcon, CalendarDays,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -45,12 +46,12 @@ const CATEGORIES = [
     { value: "van",       label: "Van" },
 ];
 
-const FUELS = [
+const FUELS: { value: string; label: string; icon?: React.ElementType; iconColor?: string }[] = [
     { value: "",         label: "Any" },
-    { value: "petrol",   label: "⛽ Petrol" },
-    { value: "diesel",   label: "🛢 Diesel" },
-    { value: "electric", label: "⚡ Electric" },
-    { value: "hybrid",   label: "🌿 Hybrid" },
+    { value: "petrol",   label: "Petrol",   icon: Fuel,      iconColor: "text-orange-500" },
+    { value: "diesel",   label: "Diesel",   icon: Droplets,  iconColor: "text-slate-600" },
+    { value: "electric", label: "Electric", icon: Zap,       iconColor: "text-yellow-500" },
+    { value: "hybrid",   label: "Hybrid",   icon: Leaf,      iconColor: "text-emerald-500" },
 ];
 
 const TRANSMISSIONS = [
@@ -59,16 +60,16 @@ const TRANSMISSIONS = [
     { value: "manual",     label: "Manual" },
 ];
 
-const COLORS = [
+const COLORS: { value: string; label: string; swatch?: string }[] = [
     { value: "",       label: "Any" },
-    { value: "white",  label: "⬜ White" },
-    { value: "black",  label: "⬛ Black" },
-    { value: "silver", label: "🩶 Silver" },
-    { value: "grey",   label: "🩶 Grey" },
-    { value: "blue",   label: "🔵 Blue" },
-    { value: "red",    label: "🔴 Red" },
-    { value: "gold",   label: "🟡 Gold" },
-    { value: "brown",  label: "🟤 Brown" },
+    { value: "white",  label: "White",  swatch: "bg-white border border-slate-300" },
+    { value: "black",  label: "Black",  swatch: "bg-slate-900" },
+    { value: "silver", label: "Silver", swatch: "bg-slate-400" },
+    { value: "grey",   label: "Grey",   swatch: "bg-slate-500" },
+    { value: "blue",   label: "Blue",   swatch: "bg-blue-500" },
+    { value: "red",    label: "Red",    swatch: "bg-red-500" },
+    { value: "gold",   label: "Gold",   swatch: "bg-yellow-400" },
+    { value: "brown",  label: "Brown",  swatch: "bg-amber-800" },
 ];
 
 // ─── Build a human-readable label ────────────────────────────────────────────
@@ -87,25 +88,38 @@ function buildLabel(f: Filters): string {
 
 // ─── Pill selector ────────────────────────────────────────────────────────────
 function PillGroup({ options, value, onChange }: {
-    options: { value: string; label: string }[];
+    options: { value: string; label: string; icon?: React.ElementType; iconColor?: string; swatch?: string }[];
     value: string;
     onChange: (v: string) => void;
 }) {
     return (
         <div className="flex flex-wrap gap-2">
-            {options.map((opt) => (
-                <button
-                    key={opt.value}
-                    onClick={() => onChange(opt.value)}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
-                        value === opt.value
-                            ? "bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100"
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50"
-                    }`}
-                >
-                    {opt.label}
-                </button>
-            ))}
+            {options.map((opt) => {
+                const Icon = opt.icon;
+                const active = value === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        onClick={() => onChange(opt.value)}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
+                            active
+                                ? "bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100"
+                                : "bg-slate-50 text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50"
+                        }`}
+                    >
+                        {opt.swatch && (
+                            <span className={`w-3 h-3 rounded-full shrink-0 ${opt.swatch}`} />
+                        )}
+                        {Icon && (
+                            <Icon
+                                size={13}
+                                className={active ? "text-white" : (opt.iconColor ?? "text-slate-500")}
+                            />
+                        )}
+                        {opt.label}
+                    </button>
+                );
+            })}
         </div>
     );
 }
@@ -233,13 +247,15 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
                     </div>
                     <div className="w-full max-w-sm grid grid-cols-1 gap-2 text-left">
                         {[
-                            { icon: "💰", tip: "Increase your max budget by 10–20%." },
-                            { icon: "📅", tip: "Expand your model year range." },
-                            { icon: "🔄", tip: "Remove the transmission or colour preference." },
+                            { Icon: BadgeDollarSign, color: "text-emerald-500 bg-emerald-50", tip: "Increase your max budget by 10–20%." },
+                            { Icon: CalendarDays,    color: "text-blue-500 bg-blue-50",      tip: "Expand your model year range." },
+                            { Icon: RefreshCw,       color: "text-violet-500 bg-violet-50",  tip: "Remove the transmission or colour preference." },
                         ].map((t) => (
                             <div key={t.tip} className="flex items-start gap-3 px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100">
-                                <span className="text-lg shrink-0">{t.icon}</span>
-                                <p className="text-xs font-bold text-slate-600">{t.tip}</p>
+                                <span className={`p-1.5 rounded-lg shrink-0 ${t.color}`}>
+                                    <t.Icon size={14} />
+                                </span>
+                                <p className="text-xs font-bold text-slate-600 pt-1">{t.tip}</p>
                             </div>
                         ))}
                     </div>

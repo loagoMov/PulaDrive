@@ -30,7 +30,7 @@ export default function PrivacyPage() {
                     Privacy Policy
                 </h1>
                 <p className="text-slate-500 font-medium">
-                    Effective date: <strong className="text-slate-700">25 June 2026</strong> · Last reviewed: <strong className="text-slate-700">2 July 2026</strong>
+                    Effective date: <strong className="text-slate-700">25 June 2026</strong> · Last reviewed: <strong className="text-slate-700">9 July 2026</strong>
                 </p>
                 <p className="text-slate-600 leading-relaxed text-sm max-w-2xl">
                     PulaDrive (Pty) Ltd ("<strong>PulaDrive</strong>", "we", "our", or "us") is committed to protecting the privacy of everyone who uses our platform. This Privacy Policy explains what personal information we collect, how we use it, who we share it with, and what rights you have under the <strong>Botswana Data Protection Act, 2018</strong>.
@@ -51,7 +51,7 @@ export default function PrivacyPage() {
                         },
                         {
                             label: "Browsing & Interaction Data",
-                            desc: "We log which vehicle listings you view, how long you spend on each, and which listings you add to your wishlist. This data powers our personalised 'For You' feed.",
+                            desc: "We log which vehicle listings you view, how long you spend on each, which listings you add to your wishlist, and how you interact with search and dealer pages. This data powers your personalised 'For You' feed and product analytics via PostHog.",
                         },
                         {
                             label: "Search History",
@@ -62,12 +62,16 @@ export default function PrivacyPage() {
                             desc: "We automatically collect your browser type, device type, general location (country/city from IP), and session identifiers for analytics and fraud prevention.",
                         },
                         {
+                            label: "Session Recordings & Heatmaps",
+                            desc: "With your consent, we record anonymised screen sessions and aggregate click/scroll heatmaps using PostHog. Password fields are always masked and never recorded. Recordings help us identify usability issues and improve the platform experience.",
+                        },
+                        {
                             label: "Dealer-Submitted Data",
                             desc: "If you operate a dealership on PulaDrive, we store your business name, contact email, phone number, location, and vehicle listings including photos.",
                         },
                         {
                             label: "Cookies & Local Storage",
-                            desc: "We use browser local storage to persist anonymous session identifiers, wishlist items, and search history for users who are not signed in. No third-party advertising cookies are set.",
+                            desc: "We use browser cookies and local storage to persist session identifiers, wishlist items, search history, and analytics state (via PostHog). You can opt out of analytics cookies at any time via the cookie consent banner. Essential sign-in cookies cannot be disabled without breaking account access.",
                         },
                     ].map((item) => (
                         <div key={item.label} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
@@ -87,6 +91,7 @@ export default function PrivacyPage() {
                         "To power the AI Deal Finder — matching your stated budget and preferences to available inventory.",
                         "To send you transactional notifications (e.g. account-related emails) — we do not send marketing emails without explicit opt-in.",
                         "To generate anonymised analytics for dealerships (e.g. how many views a listing received).",
+                        "To understand how users interact with PulaDrive using PostHog — including page views, session recordings, heatmaps, and product funnel analysis — so we can improve our platform (with your consent).",
                         "To detect and prevent fraud, spam, and misuse of the platform.",
                         "To comply with our legal obligations under Botswana law.",
                     ].map((item, i) => (
@@ -108,6 +113,7 @@ export default function PrivacyPage() {
                         { party: "Dealerships", detail: "Dealerships can see anonymised engagement metrics for their own listings (views, wishlist adds). They cannot see individual user identities unless you initiate contact via WhatsApp." },
                         { party: "Clerk (Authentication)", detail: "Your sign-in is managed by Clerk Inc. Clerk processes authentication data under their own privacy policy. We receive only your profile details upon sign-in." },
                         { party: "Convex (Database)", detail: "All application data is stored on Convex's cloud infrastructure. Data is encrypted at rest (AES-256) and in transit (TLS 1.2+). Convex does not use your data for any purpose other than providing storage services to PulaDrive." },
+                        { party: "PostHog (Product Analytics)", detail: "With your consent, we send anonymised behavioural events — such as page views, listing interactions, and search queries — to PostHog Inc. (US). PostHog may also record session replays and generate heatmaps. PostHog processes this data solely on our behalf as a data processor. Data is stored on PostHog's US-based infrastructure. You can opt out at any time via the cookie consent banner on our site, or by emailing privacy@puladrive.co.bw. PostHog's privacy policy is available at posthog.com/privacy." },
                         { party: "Upstash Redis (Caching Layer)", detail: "Search query results are temporarily cached in Upstash Redis for up to 5 minutes to improve response times. Only anonymised, non-personally-identifiable search parameters (price ranges, vehicle categories, etc.) are stored as cache keys. No user account data, names, or contact details are ever written to Redis. Data is encrypted at rest and in transit via TLS 1.2+." },
                         { party: "Legal Authorities", detail: "We may disclose personal data if required to do so by law, court order, or lawful request from governmental authorities in Botswana or applicable jurisdictions." },
                     ].map((item) => (
@@ -139,6 +145,7 @@ export default function PrivacyPage() {
                         { right: "Right to Restrict Processing", desc: "Ask us to pause processing of your data in certain circumstances." },
                         { right: "Right to Data Portability", desc: "Receive your data in a structured, machine-readable format." },
                         { right: "Right to Object", desc: "Object to processing based on legitimate interests or for direct marketing." },
+                        { right: "Right to Withdraw Analytics Consent", desc: "You may opt out of PostHog analytics at any time by clicking \"Decline\" in our cookie consent banner, or by emailing privacy@puladrive.co.bw. Withdrawing consent does not affect essential sign-in functionality." },
                     ].map((item) => (
                         <div key={item.right} className="p-4 bg-primary-50 rounded-2xl border border-primary-100 space-y-1">
                             <p className="text-sm font-black text-primary-900">{item.right}</p>

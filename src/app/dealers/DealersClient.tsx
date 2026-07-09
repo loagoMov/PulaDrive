@@ -6,9 +6,11 @@ import Link from "next/link";
 import Image from "next/image";
 import MobileNav from "@/components/navigation/MobileNav";
 import { Store, MapPin, ChevronRight } from "lucide-react";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 export default function DealersClient() {
     const dealers = useQuery(api.dealerships.list);
+    const { capture } = useAnalytics();
 
     return (
         <main className="min-h-screen pb-28 pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -76,6 +78,13 @@ export default function DealersClient() {
                         <Link
                             key={dealer._id}
                             href={`/dealers/${dealer.slug}`}
+                            onClick={() =>
+                                capture("dealer_profile_viewed", {
+                                    dealer_id: dealer._id,
+                                    dealer_slug: dealer.slug,
+                                    dealer_name: dealer.name,
+                                })
+                            }
                             className="card-premium p-6 group hover:border-primary-300 transition-all flex flex-col justify-between"
                         >
                             <div className="flex items-start gap-4 mb-4">

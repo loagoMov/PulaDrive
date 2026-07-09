@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { UserButton, useOrganization, useUser } from "@clerk/nextjs";
 import MobileNav from "@/components/navigation/MobileNav";
-import { Plus, TrendingUp, Car, Loader2, Flame, Users, Trash2, Phone, CreditCard, AlertCircle, Shield, Layers } from "lucide-react";
+import { Plus, TrendingUp, Car, Loader2, Flame, Users, Trash2, Phone, CreditCard, AlertCircle, Shield, Layers, MapPin, Mail, Globe, FileText, Store } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import NotificationCenter from "../components/NotificationCenter";
@@ -29,18 +29,32 @@ export default function DealerDashboard() {
     const [isSubmittingPhone, setIsSubmittingPhone] = useState(false);
     const [phoneInput, setPhoneInput] = useState("");
 
+    // Details state
+    const [descriptionInput, setDescriptionInput] = useState("");
+    const [mapsUrlInput, setMapsUrlInput] = useState("");
+    const [contactEmailInput, setContactEmailInput] = useState("");
+    const [contactPhoneInput, setContactPhoneInput] = useState("");
+    const [isSubmittingDetails, setIsSubmittingDetails] = useState(false);
+
     const dealership = useQuery(api.dealerships.getByClerkOrgId, organization ? { clerkOrgId: organization.id } : "skip");
     const vehicles = useQuery(api.vehicles.getByDealerId, dealership && dealership !== null ? { dealerId: dealership._id } : "skip");
     const slotStatus = useQuery(api.subscriptions.getSubscriptionStatus, dealership ? { dealerId: dealership._id } : "skip");
     const isGlobalAdmin = useQuery(api.dealerships.checkGlobalAdmin);
     const updateAuthorizedEmails = useMutation(api.dealerships.updateAuthorizedEmails);
     const updatePhone = useMutation(api.dealerships.updatePhone);
+    const updateDetails = useMutation(api.dealerships.updateDetails);
     const updateVehicle = useMutation(api.vehicles.update);
     const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
 
     useEffect(() => {
-        if (dealership && dealership.phone !== undefined) {
-            setPhoneInput(dealership.phone || "");
+        if (dealership) {
+            if (dealership.phone !== undefined) {
+                setPhoneInput(dealership.phone || "");
+            }
+            setDescriptionInput((dealership as any).description || "");
+            setMapsUrlInput((dealership as any).googleMapsUrl || "");
+            setContactEmailInput((dealership as any).contactEmail || "");
+            setContactPhoneInput((dealership as any).contactPhone || "");
         }
     }, [dealership]);
 
@@ -125,6 +139,27 @@ export default function DealerDashboard() {
             setIsSubmittingPhone(false);
         }
     };
+
+    const handleUpdateDetails = async () => {
+        if (!dealership) return;
+        setIsSubmittingDetails(true);
+        try {
+            await updateDetails({
+                id: dealership._id,
+                description: descriptionInput || undefined,
+                googleMapsUrl: mapsUrlInput || undefined,
+                contactEmail: contactEmailInput || undefined,
+                contactPhone: contactPhoneInput || undefined,
+            });
+            alert("Public dealership details updated successfully!");
+        } catch (err: any) {
+            console.error(err);
+            alert(err?.message || "Failed to update details.");
+        } finally {
+            setIsSubmittingDetails(false);
+        }
+    };
+
 
     const vehicleList = vehicles ?? [];
     const activeListings = vehicleList.filter((v: any) => v.status === "available").length;
@@ -576,6 +611,92 @@ export default function DealerDashboard() {
                             </button>
                         </div>
                         <p className="text-[10px] text-slate-400 font-medium pl-1">Digits only with country code — no spaces or dashes. e.g. <strong>26771234567</strong> for +267 71 234 567</p>
+                    </div>
+                </section>
+
+                {/* ── Dealership Profile Section ───────────────────────────────── */}
+                <section className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 sm:space-y-8">
+                    <div>
+                        <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                            <Store className="text-primary-600" size={20} /> Dealership Profile Details
+                        </h2>
+                        <p className="text-xs text-slate-400 mt-1">Configure your dealership's public profile description, Google Maps directions, and additional contact details.</p>
+                    </div>
+
+                    <div className="space-y-6">
+                        {/* Description input */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+                                <FileText size={15} className="text-primary-500" /> Public Description
+                            </label>
+                            <textarea
+                                placeholder="Describe your dealership, history, types of stock you offer, services, etc..."
+                                value={descriptionInput}
+                                onChange={(e) => setDescriptionInput(e.target.value)}
+                                rows={4}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-none font-sans"
+                                maxLength={1000}
+                            />
+                            <div className="flex justify-between items-center text-[10px] text-slate-400 font-medium px-1">
+                                <span>Write a short bio for buyers to see.</span>
+                                <span>{descriptionInput.length} / 1000</span>
+                            </div>
+                        </div>
+
+                        {/* Contact details grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+                                    <Mail size={15} className="text-primary-500" /> Public Contact Email
+                                </label>
+                                <input
+                                    type="email"
+                                    placeholder="e.g. sales@yourdealership.com"
+                                    value={contactEmailInput}
+                                    onChange={(e) => setContactEmailInput(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+                                    <Phone size={15} className="text-primary-500" /> Public Contact Phone (General)
+                                </label>
+                                <input
+                                    type="tel"
+                                    placeholder="e.g. 2673900000"
+                                    value={contactPhoneInput}
+                                    onChange={(e) => setContactPhoneInput(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Google Maps Directions input */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+                                <MapPin size={15} className="text-primary-500" /> Google Maps Directions Link
+                            </label>
+                            <input
+                                type="url"
+                                placeholder="Paste Google Maps share link or directions URL..."
+                                value={mapsUrlInput}
+                                onChange={(e) => setMapsUrlInput(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                            />
+                            <p className="text-[10px] text-slate-400 font-medium pl-1">Go to Google Maps, search your business location, click "Share" or "Directions", and copy the link here.</p>
+                        </div>
+
+                        {/* Save button */}
+                        <div className="flex justify-end pt-2">
+                            <button
+                                onClick={handleUpdateDetails}
+                                disabled={isSubmittingDetails}
+                                className="btn-primary px-6 py-3 text-xs font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap no-tap-highlight"
+                            >
+                                {isSubmittingDetails ? "Saving Profile..." : "Save Profile Details"}
+                            </button>
+                        </div>
                     </div>
                 </section>
             </div>

@@ -5,6 +5,7 @@ import "./globals.css";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import Footer from "@/components/ui/Footer";
 import CookieConsent from "@/components/ui/CookieConsent";
+import { PostHogProvider } from "@/components/PostHogProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -63,19 +64,21 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <ConvexClientProvider>
-            <html lang="en">
-                <body className={inter.className}>
-                    <div className="min-h-screen flex flex-col justify-between">
-                        <main className="flex-1">
-                            {children}
-                        </main>
-                        <Footer />
-                        <CookieConsent />
-                    </div>
-                </body>
-            </html>
-        </ConvexClientProvider>
+        <PostHogProvider>
+            <ConvexClientProvider>
+                <html lang="en">
+                    <body className={inter.className}>
+                        <div className="min-h-screen flex flex-col justify-between">
+                            <main className="flex-1">
+                                {children}
+                            </main>
+                            <Footer />
+                            <CookieConsent />
+                        </div>
+                    </body>
+                </html>
+            </ConvexClientProvider>
+        </PostHogProvider>
     );
 }
 

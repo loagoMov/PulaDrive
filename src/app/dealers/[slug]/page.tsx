@@ -8,7 +8,7 @@ import Image from "next/image";
 import MobileNav from "@/components/navigation/MobileNav";
 import CarCard from "@/components/ui/CarCard";
 import { SkeletonGrid } from "@/components/ui/SkeletonLoader";
-import { Store, MapPin, ChevronLeft, Car } from "lucide-react";
+import { Store, MapPin, ChevronLeft, Car, Mail, Phone, Globe, MessageSquare } from "lucide-react";
 
 export default function DealerDetailsPage() {
     const params = useParams();
@@ -77,6 +77,95 @@ export default function DealerDetailsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* ── Dealer Profile & Contact Information ── */}
+            {((dealer as any).description || (dealer as any).contactEmail || (dealer as any).contactPhone || dealer.phone || (dealer as any).googleMapsUrl) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-350">
+                    {/* Public Description */}
+                    <div className="space-y-4">
+                        <h3 className="text-xl font-black text-slate-900 tracking-tight">About Dealership</h3>
+                        {(dealer as any).description ? (
+                            <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                {(dealer as any).description}
+                            </p>
+                        ) : (
+                            <p className="text-sm font-medium text-slate-400 italic">
+                                No description provided yet.
+                            </p>
+                        )}
+                        
+                        {/* Contacts */}
+                        <div className="pt-4 space-y-3">
+                            <h4 className="text-xs uppercase font-black tracking-wider text-slate-400">Contact Details</h4>
+                            <div className="space-y-2">
+                                {(dealer as any).contactEmail && (
+                                    <div className="flex items-center gap-2.5 text-sm font-bold text-slate-700">
+                                        <Mail size={16} className="text-primary-500" />
+                                        <a href={`mailto:${(dealer as any).contactEmail}`} className="hover:text-primary-600 transition-colors">
+                                            {(dealer as any).contactEmail}
+                                        </a>
+                                    </div>
+                                )}
+                                {(dealer as any).contactPhone && (
+                                    <div className="flex items-center gap-2.5 text-sm font-bold text-slate-700">
+                                        <Phone size={16} className="text-primary-500" />
+                                        <a href={`tel:${(dealer as any).contactPhone}`} className="hover:text-primary-600 transition-colors">
+                                            {(dealer as any).contactPhone}
+                                        </a>
+                                    </div>
+                                )}
+                                {dealer.phone && (
+                                    <div className="flex items-center gap-2.5 text-sm font-bold text-slate-700">
+                                        <MessageSquare size={16} className="text-emerald-500 fill-emerald-50" />
+                                        <a href={`https://wa.me/${dealer.phone}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors flex items-center gap-1">
+                                            WhatsApp Sales <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">Online</span>
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Find Us / Directions */}
+                    <div className="flex flex-col justify-between space-y-6">
+                        <div className="space-y-4">
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight">Location &amp; Directions</h3>
+                            <div className="flex items-start gap-2.5 text-slate-600 font-medium text-sm">
+                                <MapPin size={18} className="text-primary-500 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-bold text-slate-800">{dealer.location}</p>
+                                    <p className="text-xs text-slate-400 mt-1">Visit us at our dealership location.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {(dealer as any).googleMapsUrl ? (
+                            <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 flex flex-col justify-between items-center text-center space-y-4">
+                                <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-500">
+                                    <MapPin size={24} />
+                                </div>
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-black text-slate-800">Find us on Google Maps</h4>
+                                    <p className="text-xs text-slate-400 font-medium">Get real-time GPS directions to our dealership branch.</p>
+                                </div>
+                                <a
+                                    href={(dealer as any).googleMapsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full btn-primary py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-md hover:shadow-lg no-tap-highlight cursor-pointer"
+                                >
+                                    Get Directions ↗
+                                </a>
+                            </div>
+                        ) : (
+                            <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-2">
+                                <MapPin size={24} className="text-slate-300 animate-pulse" />
+                                <p className="text-xs text-slate-400 font-medium">Google Maps directions not available.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <div className="space-y-6">
                 <h2 className="text-2xl font-black text-slate-900">Inventory</h2>

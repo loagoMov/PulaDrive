@@ -245,6 +245,67 @@ export const updatePhone = mutation({
     },
 });
 
+export const updateDetails = mutation({
+    args: {
+        id: v.id("dealerships"),
+        description: v.optional(v.string()),
+        googleMapsUrl: v.optional(v.string()),
+        contactEmail: v.optional(v.string()),
+        contactPhone: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new ConvexError("Unauthorized: You must be signed in.");
+        }
+
+        const dealership = await ctx.db.get(args.id);
+        if (!dealership) {
+            throw new ConvexError("Dealership not found.");
+        }
+
+        const callerOrgId = (identity as any).orgID ?? (identity as any).orgId ?? identity.subject;
+        const isOrgMember = dealership.clerkOrgId === callerOrgId;
+        const isGlobal = await isGlobalAdmin(ctx);
+        const isCurrentDealerAdmin = identity.email && dealership.authorizedEmails?.includes(identity.email);
+
+        if (!isGlobal && !isCurrentDealerAdmin && !isOrgMember) {
+            throw new ConvexError("Forbidden: You are not authorized to update this dealership's details.");
+        }
+
+        // Rate limit profile details updates
+        await checkRateLimit(
+            ctx,
+            rateLimitKey("update_contact", "user", identity.subject),
+            RATE_LIMITS.UPDATE_CONTACT
+        );
+
+        if (args.description && args.description.length > 1000) {
+            throw new ConvexError("Description must be <= 1000 characters.");
+        }
+        if (args.contactEmail) {
+            validateEmail(args.contactEmail);
+        }
+        
+        let cleanedPhone = args.contactPhone;
+        if (cleanedPhone) {
+            cleanedPhone = cleanedPhone.replace(/\D/g, "");
+            if (cleanedPhone.length < 7 || cleanedPhone.length > 15) {
+                throw new ConvexError("Invalid contact phone number. Must be 7-15 digits.");
+            }
+        }
+
+        await ctx.db.patch(args.id, {
+            description: args.description,
+            googleMapsUrl: args.googleMapsUrl,
+            contactEmail: args.contactEmail,
+            contactPhone: cleanedPhone,
+            updatedAt: Date.now(),
+        });
+    },
+});
+
+
 export const remove = mutation({
     args: { id: v.id("dealerships") },
     handler: async (ctx, args) => {
