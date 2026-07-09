@@ -69,14 +69,14 @@ function InvoiceContent() {
             </div>
 
             {/* ── Invoice Document ───────────────────────────────────── */}
-            <div className="invoice-bg min-h-screen bg-slate-100 flex items-start justify-center pt-20 pb-16 px-4">
-                <div className="invoice-doc w-full max-w-[800px] bg-white rounded-3xl overflow-hidden shadow-2xl">
+            <div className="invoice-bg min-h-screen bg-slate-100 flex items-start justify-center pt-20 pb-16 px-0 sm:px-4">
+                <div className="invoice-doc w-full max-w-[800px] bg-white rounded-none sm:rounded-3xl overflow-hidden shadow-2xl">
 
                     {/* Top accent bar */}
                     <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, hsl(${accentHue},80%,45%), hsl(${accentHue + 20},70%,60%))` }} />
 
                     {/* Header */}
-                    <div className="px-12 pt-10 pb-8 flex items-start justify-between gap-6 border-b border-slate-100">
+                    <div className="px-5 sm:px-12 pt-10 pb-8 flex flex-col sm:flex-row items-start justify-between gap-6 border-b border-slate-100">
                         {/* Brand */}
                         <div className="space-y-1">
                             <div className="flex items-center gap-2.5">
@@ -96,15 +96,15 @@ function InvoiceContent() {
                         </div>
 
                         {/* Invoice meta */}
-                        <div className="text-right space-y-1">
+                        <div className="text-left sm:text-right space-y-1">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tax Invoice</p>
                             <p className="text-4xl font-black text-slate-900 tracking-tight leading-none">{inv}</p>
                             <div className="pt-3 space-y-1 text-xs text-slate-500">
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center sm:justify-end gap-2">
                                     <span className="text-slate-400">Issue date</span>
                                     <span className="font-bold text-slate-700">{issueDate}</span>
                                 </div>
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center sm:justify-end gap-2">
                                     <span className="text-slate-400">Due date</span>
                                     <span className="font-bold" style={{ color: `hsl(${accentHue},65%,42%)` }}>{dueDate}</span>
                                 </div>
@@ -113,7 +113,7 @@ function InvoiceContent() {
                     </div>
 
                     {/* Bill To / From */}
-                    <div className="px-12 py-8 grid grid-cols-2 gap-8 border-b border-slate-100">
+                    <div className="px-5 sm:px-12 py-8 grid grid-cols-1 sm:grid-cols-2 gap-8 border-b border-slate-100">
                         <div>
                             <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">Bill To</p>
                             <p className="text-lg font-black text-slate-900 leading-tight">{dealer}</p>
@@ -122,7 +122,7 @@ function InvoiceContent() {
                                 <p>Botswana</p>
                             </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                             <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">Issued By</p>
                             <p className="text-base font-black text-slate-900 leading-tight">PulaDrive Botswana (Pty) Ltd</p>
                             <div className="mt-2 space-y-1 text-[13px] text-slate-500">
@@ -133,8 +133,8 @@ function InvoiceContent() {
                     </div>
 
                     {/* Line items */}
-                    <div className="px-12 py-8">
-                        <table className="w-full text-sm">
+                    <div className="px-5 sm:px-12 py-8 overflow-x-auto">
+                        <table className="w-full text-sm min-w-[500px] sm:min-w-0">
                             <thead>
                                 <tr style={{ borderBottom: `2px solid hsl(${accentHue},75%,48%)` }}>
                                     <th className="text-left pb-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Description</th>
@@ -162,7 +162,7 @@ function InvoiceContent() {
 
                         {/* Totals block */}
                         <div className="mt-6 flex justify-end">
-                            <div className="w-60 space-y-2.5 text-sm">
+                            <div className="w-full sm:w-60 space-y-2.5 text-sm">
                                 <div className="flex justify-between text-slate-500">
                                     <span>Subtotal</span>
                                     <span className="font-semibold text-slate-700">P {amount.toLocaleString("en-BW", { minimumFractionDigits: 2 })}</span>
@@ -188,12 +188,12 @@ function InvoiceContent() {
                     </div>
 
                     {/* Payment instructions */}
-                    <div className="mx-12 mb-10 rounded-2xl border border-slate-100 overflow-hidden">
+                    <div className="mx-5 sm:mx-12 mb-10 rounded-2xl border border-slate-100 overflow-hidden">
                         <div className="px-6 py-3 text-[9px] font-black uppercase tracking-[0.15em] text-white"
                             style={{ background: `hsl(${accentHue},75%,48%)` }}>
                             Payment Instructions
                         </div>
-                        <div className="px-6 py-5 grid grid-cols-2 gap-6 text-sm">
+                        <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
                             <div className="space-y-2">
                                 {[
                                     ["Bank",        "First National Bank (FNB)"],
@@ -226,7 +226,7 @@ function InvoiceContent() {
                     </div>
 
                     {/* Footer */}
-                    <div className="px-12 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                    <div className="px-5 sm:px-12 py-5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <p className="text-[11px] text-slate-400 leading-snug max-w-sm">
                             This is an official PulaDrive invoice. Queries? Email{" "}
                             <span className="font-semibold text-slate-600">support@puladrive.com</span>

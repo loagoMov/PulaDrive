@@ -407,18 +407,18 @@ export default function DealerBillingPage() {
 
                             {/* Tier comparison hint */}
                             {tier !== "unlimited" && (
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-3 gap-1.5">
                                     {(["starter", "growth", "unlimited"] as const).map((t) => {
                                         const m = TIER_META[t];
                                         const isCurrent = t === tier;
                                         return (
-                                            <div key={t} className={`p-3 rounded-xl border text-center transition-all ${isCurrent ? `${m.bg} ${m.border}` : "bg-slate-50 border-slate-100"}`}>
-                                                <p className={`text-[10px] font-black uppercase tracking-wider ${isCurrent ? m.color : "text-slate-400"}`}>{m.label}</p>
+                                            <div key={t} className={`p-2 sm:p-3 rounded-xl border text-center transition-all ${isCurrent ? `${m.bg} ${m.border}` : "bg-slate-50 border-slate-100"}`}>
+                                                <p className={`text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${isCurrent ? m.color : "text-slate-400"}`}>{m.label}</p>
                                                 <p className={`text-xs font-black mt-0.5 ${isCurrent ? "text-slate-900" : "text-slate-500"}`}>
                                                     {t === "unlimited" ? "∞" : `${m.slots}`}
                                                 </p>
-                                                <p className={`text-[10px] mt-0.5 ${isCurrent ? "text-slate-500" : "text-slate-400"}`}>{m.price}/mo</p>
-                                                {isCurrent && <p className={`text-[9px] font-black mt-1 ${m.color}`}>CURRENT</p>}
+                                                <p className={`text-[9px] sm:text-[10px] mt-0.5 ${isCurrent ? "text-slate-500" : "text-slate-400"}`}>{m.price}/mo</p>
+                                                {isCurrent && <p className={`text-[8px] sm:text-[9px] font-black mt-1 ${m.color}`}>CURRENT</p>}
                                             </div>
                                         );
                                     })}
@@ -533,11 +533,11 @@ export default function DealerBillingPage() {
                                 return (
                                     <div
                                         key={inv._id}
-                                        className={`bg-white rounded-2xl border shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                                        className={`bg-white rounded-2xl border shadow-sm p-4 sm:p-5 flex flex-col gap-3 ${
                                             inv.status === "overdue" ? "border-red-200" : "border-slate-100"
                                         }`}
                                     >
-                                        <div className="flex items-start gap-3">
+                                        <div className="flex items-center gap-3">
                                             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                                                 inv.status === "overdue" ? "bg-red-50" : "bg-amber-50"
                                             }`}>
@@ -548,9 +548,11 @@ export default function DealerBillingPage() {
                                                 <p className={`text-xs font-bold mt-0.5 ${dl.color}`}>{dl.text}</p>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 pl-12 sm:pl-0">
-                                            <StatusBadge status={inv.status} />
-                                            <span className="text-base sm:text-lg font-black text-slate-900">{formatPula(inv.amount)}</span>
+                                        <div className="flex items-center justify-between border-t border-slate-50 pt-2.5">
+                                            <div className="flex items-center gap-2">
+                                                <StatusBadge status={inv.status} />
+                                                <span className="text-base font-black text-slate-900">{formatPula(inv.amount)}</span>
+                                            </div>
                                             <a
                                                 href={`/invoice?dealer=${encodeURIComponent(dealership?.name ?? "")}&tin=${encodeURIComponent(dealership?.bursTin ?? "000000000")}&inv=${encodeURIComponent(inv.invoiceNumber)}&vat=0&amount=${(inv.amount / 100).toFixed(2)}&due=${encodeURIComponent(inv.dueDate)}`}
                                                 target="_blank"

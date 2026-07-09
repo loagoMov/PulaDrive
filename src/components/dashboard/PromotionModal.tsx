@@ -101,8 +101,8 @@ export default function PromotionModal({ vehicle, onClose }: PromotionModalProps
         const timeLeft = daysLeft > 0 ? `${daysLeft}d ${hoursLeft}h` : `${hoursLeft}h`;
 
         return (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
+                <div className="bg-white rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
                     {/* Header */}
                     <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                         <div>
@@ -111,7 +111,7 @@ export default function PromotionModal({ vehicle, onClose }: PromotionModalProps
                             </h3>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Manage Featured Listing</p>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <button onClick={onClose} className="touch-target p-2 hover:bg-slate-100 rounded-full transition-colors">
                             <X size={20} className="text-slate-400" />
                         </button>
                     </div>
@@ -176,8 +176,8 @@ export default function PromotionModal({ vehicle, onClose }: PromotionModalProps
 
     // ── Apply-for-promotion view (vehicle is NOT currently featured) ─────────────
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
+            <div className="bg-white rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
                 {/* Modal Header */}
                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <div>
@@ -186,7 +186,7 @@ export default function PromotionModal({ vehicle, onClose }: PromotionModalProps
                         </h3>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Submit Premium Listing Request</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <button onClick={onClose} className="touch-target p-2 hover:bg-slate-100 rounded-full transition-colors">
                         <X size={20} className="text-slate-400" />
                     </button>
                 </div>

@@ -180,11 +180,11 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
     }
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
+            <div className="bg-white rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
-                        <h3 className="text-2xl font-black text-slate-900">Edit Listing</h3>
+                        <h3 className="text-xl sm:text-2xl font-black text-slate-900">Edit Listing</h3>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Vehicle Details & Status</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -194,23 +194,23 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
                                 className="p-2 hover:bg-rose-50 text-rose-500 rounded-full transition-colors"
                                 title="Delete Listing"
                             >
-                                <Trash2 size={24} />
+                                <Trash2 size={20} />
                             </button>
                         )}
                         <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-full transition-colors">
-                            <X size={24} className="text-slate-400" />
+                            <X size={20} className="text-slate-400" />
                         </button>
                     </div>
                 </div>
 
                 {showDeleteConfirm ? (
-                    <div className="p-12 text-center space-y-6">
-                        <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-500">
-                            <AlertTriangle size={40} />
+                    <div className="p-6 sm:p-12 text-center space-y-6">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-500">
+                            <AlertTriangle size={36} />
                         </div>
                         <div className="space-y-2">
-                            <h4 className="text-xl font-black text-slate-900">Delete Listing?</h4>
-                            <p className="text-slate-500 font-medium">
+                            <h4 className="text-lg sm:text-xl font-black text-slate-900">Delete Listing?</h4>
+                            <p className="text-slate-500 font-medium text-sm">
                                 This action cannot be undone. Are you sure you want to remove this vehicle from the marketplace?
                             </p>
                         </div>
@@ -223,21 +223,21 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
                         <div className="flex gap-4 pt-4">
                             <button
                                 onClick={() => setShowDeleteConfirm(false)}
-                                className="flex-1 px-6 py-4 bg-slate-100 text-slate-900 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+                                className="flex-1 px-4 py-3 bg-slate-100 text-slate-900 rounded-2xl font-bold hover:bg-slate-200 transition-all text-sm"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleDelete}
                                 disabled={isDeleting}
-                                className="flex-1 px-6 py-4 bg-rose-500 text-white rounded-2xl font-bold hover:bg-rose-600 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 px-4 py-3 bg-rose-500 text-white rounded-2xl font-bold hover:bg-rose-600 transition-all flex items-center justify-center gap-2 text-sm"
                             >
-                                {isDeleting ? <Loader2 className="animate-spin" size={20} /> : "Yes, Delete"}
+                                {isDeleting ? <Loader2 className="animate-spin" size={16} /> : "Yes, Delete"}
                             </button>
                         </div>
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                    <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-6">
                         <div className="grid grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Make</label>
@@ -249,7 +249,7 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="space-y-2">
                                 <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Year</label>
                                 <input name="year" type="number" defaultValue={vehicle.year} required min={1900} max={2030} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all" />
