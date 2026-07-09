@@ -59,7 +59,7 @@ export default function DealerDetailsPage() {
                 Back to Dealerships
             </Link>
 
-            <div className="flex flex-col sm:flex-row sm:items-end gap-6 mb-12">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-6 mb-8 md:mb-12">
                 <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-3xl flex items-center justify-center shrink-0 border-2 border-primary-200 shadow-xl shadow-primary-900/5 overflow-hidden">
                     {dealer.logoUrl ? (
                         <Image src={dealer.logoUrl} alt={dealer.name} fill sizes="(max-width: 640px) 96px, 128px" className="object-cover" />
@@ -67,25 +67,25 @@ export default function DealerDetailsPage() {
                         <Store className="w-12 h-12 sm:w-16 sm:h-16 text-primary-500" />
                     )}
                 </div>
-                <div className="pb-2">
-                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
+                <div className="pb-2 min-w-0">
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight break-words">
                         {dealer.name}
                     </h1>
-                    <div className="flex items-center gap-2 text-slate-500 mt-3 font-medium text-lg">
-                        <MapPin size={20} className="text-primary-500" />
-                        <span>{dealer.location}</span>
+                    <div className="flex items-center gap-2 text-slate-500 mt-3 font-medium text-lg min-w-0">
+                        <MapPin size={20} className="text-primary-500 shrink-0" />
+                        <span className="truncate">{dealer.location}</span>
                     </div>
                 </div>
             </div>
 
             {/* ── Dealer Profile & Contact Information ── */}
             {((dealer as any).description || (dealer as any).contactEmail || (dealer as any).contactPhone || dealer.phone || (dealer as any).googleMapsUrl) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-350">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 md:mb-12 bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-350">
                     {/* Public Description */}
-                    <div className="space-y-4">
+                    <div className="space-y-4 min-w-0">
                         <h3 className="text-xl font-black text-slate-900 tracking-tight">About Dealership</h3>
                         {(dealer as any).description ? (
-                            <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">
+                            <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap break-words">
                                 {(dealer as any).description}
                             </p>
                         ) : (
@@ -95,30 +95,30 @@ export default function DealerDetailsPage() {
                         )}
                         
                         {/* Contacts */}
-                        <div className="pt-4 space-y-3">
+                        <div className="pt-4 space-y-3 min-w-0">
                             <h4 className="text-xs uppercase font-black tracking-wider text-slate-400">Contact Details</h4>
-                            <div className="space-y-2">
+                            <div className="space-y-2 min-w-0">
                                 {(dealer as any).contactEmail && (
-                                    <div className="flex items-center gap-2.5 text-sm font-bold text-slate-700">
-                                        <Mail size={16} className="text-primary-500" />
-                                        <a href={`mailto:${(dealer as any).contactEmail}`} className="hover:text-primary-600 transition-colors">
+                                    <div className="flex items-center gap-2.5 text-sm font-bold text-slate-700 min-w-0">
+                                        <Mail size={16} className="text-primary-500 shrink-0" />
+                                        <a href={`mailto:${(dealer as any).contactEmail}`} className="hover:text-primary-600 transition-colors break-all truncate">
                                             {(dealer as any).contactEmail}
                                         </a>
                                     </div>
                                 )}
                                 {(dealer as any).contactPhone && (
-                                    <div className="flex items-center gap-2.5 text-sm font-bold text-slate-700">
-                                        <Phone size={16} className="text-primary-500" />
-                                        <a href={`tel:${(dealer as any).contactPhone}`} className="hover:text-primary-600 transition-colors">
+                                    <div className="flex items-center gap-2.5 text-sm font-bold text-slate-700 min-w-0">
+                                        <Phone size={16} className="text-primary-500 shrink-0" />
+                                        <a href={`tel:${(dealer as any).contactPhone}`} className="hover:text-primary-600 transition-colors truncate">
                                             {(dealer as any).contactPhone}
                                         </a>
                                     </div>
                                 )}
                                 {dealer.phone && (
-                                    <div className="flex items-center gap-2.5 text-sm font-bold text-slate-700">
-                                        <MessageSquare size={16} className="text-emerald-500 fill-emerald-50" />
-                                        <a href={`https://wa.me/${dealer.phone}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors flex items-center gap-1">
-                                            WhatsApp Sales <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">Online</span>
+                                    <div className="flex items-center gap-2.5 text-sm font-bold text-slate-700 min-w-0">
+                                        <MessageSquare size={16} className="text-emerald-500 fill-emerald-50 shrink-0" />
+                                        <a href={`https://wa.me/${dealer.phone}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors flex items-center gap-1 min-w-0 truncate">
+                                            <span className="truncate">WhatsApp Sales</span> <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider shrink-0">Online</span>
                                         </a>
                                     </div>
                                 )}
@@ -127,13 +127,13 @@ export default function DealerDetailsPage() {
                     </div>
 
                     {/* Find Us / Directions */}
-                    <div className="flex flex-col justify-between space-y-6">
+                    <div className="flex flex-col justify-between space-y-6 min-w-0">
                         <div className="space-y-4">
                             <h3 className="text-xl font-black text-slate-900 tracking-tight">Location &amp; Directions</h3>
                             <div className="flex items-start gap-2.5 text-slate-600 font-medium text-sm">
                                 <MapPin size={18} className="text-primary-500 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-bold text-slate-800">{dealer.location}</p>
+                                <div className="min-w-0">
+                                    <p className="font-bold text-slate-800 break-words">{dealer.location}</p>
                                     <p className="text-xs text-slate-400 mt-1">Visit us at our dealership location.</p>
                                 </div>
                             </div>

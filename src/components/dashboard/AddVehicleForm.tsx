@@ -203,8 +203,8 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
     }
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <h3 className="text-xl font-black text-slate-900">List New Vehicle</h3>
                     <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-full transition-colors">
@@ -212,7 +212,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Make</label>
@@ -224,7 +224,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Year</label>
                             <input name="year" type="number" required min={1900} max={2030} placeholder="e.g. 2018" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 font-sans text-sm text-slate-900" />
@@ -318,7 +318,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                                 {exteriorFiles.length > 0 && (
                                     <div className="flex flex-wrap justify-center gap-1.5 mt-3 pt-3 border-t border-slate-200/50">
                                         {exteriorFiles.map((preview, i) => (
-                                            <div key={i} className="relative w-10 h-10 rounded-lg overflow-hidden border border-slate-200 group/img">
+                                            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-200 group/img">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={preview.objectUrl} alt="preview" className="w-full h-full object-cover" />
                                                 <button type="button" onClick={() => removeFile('exterior', i)} className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white transition-opacity">
@@ -349,7 +349,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                                 {interiorFiles.length > 0 && (
                                     <div className="flex flex-wrap justify-center gap-1.5 mt-3 pt-3 border-t border-slate-200/50">
                                         {interiorFiles.map((preview, i) => (
-                                            <div key={i} className="relative w-10 h-10 rounded-lg overflow-hidden border border-slate-200 group/img">
+                                            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-200 group/img">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={preview.objectUrl} alt="preview" className="w-full h-full object-cover" />
                                                 <button type="button" onClick={() => removeFile('interior', i)} className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white transition-opacity">
@@ -380,7 +380,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                                 {engineBayFiles.length > 0 && (
                                     <div className="flex flex-wrap justify-center gap-1.5 mt-3 pt-3 border-t border-slate-200/50">
                                         {engineBayFiles.map((preview, i) => (
-                                            <div key={i} className="relative w-10 h-10 rounded-lg overflow-hidden border border-slate-200 group/img">
+                                            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-200 group/img">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={preview.objectUrl} alt="preview" className="w-full h-full object-cover" />
                                                 <button type="button" onClick={() => removeFile('engineBay', i)} className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white transition-opacity">

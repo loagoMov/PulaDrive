@@ -24,6 +24,12 @@ export default function VehicleDetailsClient() {
     const { toggle, isWishlisted } = useWishlist();
     const { capture } = useAnalytics();
 
+    // Reset scroll position on mount — prevents the previous page's scroll
+    // position from carrying over on mobile (common with Next.js client navigation).
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: "instant" });
+    }, []);
+
     // Track vehicle view on load
     useEffect(() => {
         if (vehicle) {
@@ -146,7 +152,7 @@ export default function VehicleDetailsClient() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto lg:mt-8 lg:px-8 pb-12">
+            <div className="max-w-7xl mx-auto lg:mt-8 lg:px-8 pb-28 lg:pb-12">
                 {/* Desktop Top Actions */}
                 <div className="hidden lg:flex justify-between items-center mb-6">
                     <button
@@ -178,7 +184,7 @@ export default function VehicleDetailsClient() {
                     </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-8">
+                <div className="flex flex-col lg:flex-row gap-8 pb-24 lg:pb-0">
                     {/* Left Column: Gallery — sticky wrapper keeps entire image block pinned */}
                     <div className="lg:w-3/5 lg:sticky lg:top-8 lg:self-start">
                         <div
@@ -260,7 +266,7 @@ export default function VehicleDetailsClient() {
                     </div>
 
                     {/* Right Column: Details + CTAs */}
-                    <div className="flex-1 px-4 lg:px-0 space-y-8">
+                    <div className="flex-1 px-4 lg:px-0 space-y-8 min-w-0">
                         <section className="space-y-4 pt-6 lg:pt-0">
                             <div className="flex flex-wrap gap-2">
                                 <span className="bg-primary-50 text-primary-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ring-1 ring-primary-100">
@@ -271,16 +277,16 @@ export default function VehicleDetailsClient() {
                                 </span>
                             </div>
                             <div className="space-y-1">
-                                <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">
+                                <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight break-words">
                                     {vehicle.make} <span className="text-primary-600">{vehicle.model}</span>
                                 </h1>
-                                <p className="text-sm font-medium text-slate-400 flex items-center gap-1">
-                                    <MapPin size={14} /> Available at {vehicle.dealer?.name || "Broadway Motors"}, {vehicle.dealer?.location || "Gaborone"}
+                                <p className="text-sm font-medium text-slate-400 flex items-center gap-1 min-w-0">
+                                    <MapPin size={14} className="shrink-0" /> <span className="truncate">Available at {vehicle.dealer?.name || "Broadway Motors"}, {vehicle.dealer?.location || "Gaborone"}</span>
                                 </p>
                             </div>
-                            <div className="text-5xl font-black text-slate-900 tracking-tighter pt-4">
+                            <div className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter pt-4">
                                 P {vehicle.price.toLocaleString()}
-                                <span className="text-base font-medium text-slate-400 ml-2 tracking-normal">VAT Incl.</span>
+                                <span className="text-sm sm:text-base font-medium text-slate-400 ml-2 tracking-normal">VAT Incl.</span>
                             </div>
                         </section>
 
@@ -340,19 +346,19 @@ export default function VehicleDetailsClient() {
 
                         {/* CTA Buttons — inline at the bottom of the content */}
                         <section className="space-y-3 border-t border-slate-100 pt-6 pb-6">
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <button
                                     onClick={handleWhatsApp}
                                     disabled={!whatsappUrl}
                                     title={!whatsappUrl ? "This dealer hasn't added a WhatsApp number yet" : undefined}
-                                    className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black transition-all shadow-lg shadow-emerald-100 text-sm"
+                                    className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black transition-all shadow-lg shadow-emerald-100 text-sm w-full"
                                 >
                                     <MessageCircle size={18} />
                                     WhatsApp Dealer
                                 </button>
                                 <button
                                     onClick={() => alert("Booking functionality coming soon! Please contact the dealer via WhatsApp to schedule a viewing.")}
-                                    className="bg-slate-900 hover:bg-slate-800 active:scale-95 text-white py-4 rounded-2xl font-black transition-all shadow-lg shadow-slate-200 text-sm"
+                                    className="bg-slate-900 hover:bg-slate-800 active:scale-95 text-white py-4 rounded-2xl font-black transition-all shadow-lg shadow-slate-200 text-sm w-full"
                                 >
                                     Book a Visit
                                 </button>
