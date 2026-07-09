@@ -3,30 +3,37 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Cookie, X } from "lucide-react";
+import { posthogOptIn, posthogOptOut } from "@/components/PostHogProvider";
+
+// ── Consent key shared with PostHogProvider ──────────────────────────────────
+const CONSENT_KEY = "puladrive_cookie_consent";
 
 export default function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Check if user has already accepted or closed the cookie notice
-    const hasConsented = localStorage.getItem("cp_cookies_accepted");
+    const hasConsented = localStorage.getItem(CONSENT_KEY);
     if (!hasConsented) {
-      // Small timeout to make the entrance transition smooth and feel premium
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, 1000);
+      const timer = setTimeout(() => setIsVisible(true), 1000);
       return () => clearTimeout(timer);
     }
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem("cp_cookies_accepted", "true");
+    localStorage.setItem(CONSENT_KEY, "accepted");
+    posthogOptIn();
+    setIsVisible(false);
+  };
+
+  const handleDecline = () => {
+    localStorage.setItem(CONSENT_KEY, "declined");
+    posthogOptOut();
     setIsVisible(false);
   };
 
   const handleClose = () => {
-    // Set a session identifier so they aren't nagged in the current session
-    sessionStorage.setItem("cp_cookies_dismissed", "true");
+    // Dismissed without choosing — treat as declined for this session
+    sessionStorage.setItem("puladrive_cookie_dismissed", "true");
     setIsVisible(false);
   };
 
@@ -45,10 +52,10 @@ export default function CookieConsent() {
           <div className="space-y-1">
             <h3 className="text-sm font-black text-slate-900 tracking-tight">Privacy & Storage Preferences</h3>
             <p className="text-xs text-slate-500 font-medium leading-relaxed pr-6">
-              We value your privacy. PulaDrive only uses essential functional cookies for sign-in, and local storage to remember your wishlist. No advertising pixels or third-party tracking scripts are loaded.
+              We use analytics cookies to understand how you use PulaDrive and improve your experience. No advertising pixels or third-party ad tracking.
             </p>
           </div>
-          <button 
+          <button
             onClick={handleClose}
             className="text-slate-400 hover:text-slate-600 transition-colors p-1 absolute top-0 right-0 rounded-lg hover:bg-slate-50"
             aria-label="Dismiss cookie banner"
@@ -62,14 +69,19 @@ export default function CookieConsent() {
             onClick={handleAccept}
             className="text-xs font-bold px-4 py-2 bg-primary-600 hover:bg-primary-700 active:scale-95 text-white rounded-xl shadow-md shadow-primary-500/20 transition-all cursor-pointer"
           >
-            Got it
+            Accept All
+          </button>
+          <button
+            onClick={handleDecline}
+            className="text-xs font-bold px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all border border-slate-100 cursor-pointer"
+          >
+            Decline
           </button>
           <Link
             href="/legal/cookies"
-            onClick={handleAccept} // Assume accept if reading the policy
-            className="text-xs font-bold px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all border border-slate-100"
+            className="text-xs font-medium text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
           >
-            Read Policy
+            Learn more
           </Link>
         </div>
       </div>

@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, Share2, Heart, MessageCircle, MapPin, Calend
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useWishlist } from "@/hooks/useWishlist";
-import { useTelemetry } from "@/hooks/useTelemetry";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import NotFound from "@/app/not-found";
 
 const ReportModal = dynamic(() => import("../../../components/ui/ReportModal"), { ssr: false });
@@ -22,18 +22,23 @@ export default function VehicleDetailsClient() {
     const [touchStartX, setTouchStartX] = useState<number | null>(null);
     const [shareSuccess, setShareSuccess] = useState(false);
     const { toggle, isWishlisted } = useWishlist();
-    const { trackEvent } = useTelemetry();
+    const { capture } = useAnalytics();
 
     // Track vehicle view on load
     useEffect(() => {
         if (vehicle) {
-            trackEvent("click_vehicle", vehicle._id, {
+            capture("listing_viewed", {
+                vehicle_id: vehicle._id,
                 make: vehicle.make,
                 model: vehicle.model,
+                year: vehicle.year,
                 price: vehicle.price,
+                dealer_id: vehicle.dealerId,
+                dealer_name: vehicle.dealer?.name,
             });
         }
-    }, [vehicle, trackEvent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vehicle?._id]);
 
     if (vehicle === undefined) {
         return (
@@ -71,12 +76,13 @@ export default function VehicleDetailsClient() {
             text: `Check out this ${vehicle.year} ${vehicle.make} ${vehicle.model} for P ${vehicle.price.toLocaleString()} on PulaDrive!`,
             url: listingUrl,
         };
-        trackEvent("click_share", vehicle._id);
         try {
             if (navigator.share) {
                 await navigator.share(shareData);
+                capture("listing_shared", { vehicle_id: vehicle._id, method: "native_share" });
             } else {
                 await navigator.clipboard.writeText(listingUrl);
+                capture("listing_shared", { vehicle_id: vehicle._id, method: "clipboard" });
                 setShareSuccess(true);
                 setTimeout(() => setShareSuccess(false), 2500);
             }
@@ -90,9 +96,21 @@ export default function VehicleDetailsClient() {
     const handleToggleWishlist = () => {
         if (vehicle) {
             toggle(vehicle._id);
-            trackEvent("click_favorite", vehicle._id, {
-                wishlisted: !wishlisted,
+            capture("listing_favorited", {
+                vehicle_id: vehicle._id,
+                action: wishlisted ? "remove" : "add",
             });
+        }
+    };
+
+    const handleWhatsApp = () => {
+        if (whatsappUrl) {
+            capture("whatsapp_intent", {
+                vehicle_id: vehicle._id,
+                dealer_id: vehicle.dealerId,
+                dealer_name: vehicle.dealer?.name,
+            });
+            window.open(whatsappUrl, "_blank");
         }
     };
 
@@ -324,7 +342,7 @@ export default function VehicleDetailsClient() {
                         <section className="space-y-3 border-t border-slate-100 pt-6 pb-6">
                             <div className="grid grid-cols-2 gap-3">
                                 <button
-                                    onClick={() => whatsappUrl && window.open(whatsappUrl, '_blank')}
+                                    onClick={handleWhatsApp}
                                     disabled={!whatsappUrl}
                                     title={!whatsappUrl ? "This dealer hasn't added a WhatsApp number yet" : undefined}
                                     className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black transition-all shadow-lg shadow-emerald-100 text-sm"

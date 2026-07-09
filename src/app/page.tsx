@@ -1,34 +1,29 @@
 "use client";
 
-import { useQuery, usePaginatedQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import MobileNav from "@/components/navigation/MobileNav";
-import CarCard from "@/components/ui/CarCard";
-import NotificationCenter from "./components/NotificationCenter";
-import FeaturedCarousel from "@/components/ui/FeaturedCarousel";
-import { SkeletonGrid } from "@/components/ui/SkeletonLoader";
-import { Search, MapPin, SlidersHorizontal, Sparkles, Clock, ArrowRight, Heart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { Search, MapPin, SlidersHorizontal, Sparkles, Clock, ArrowRight, Heart } from "lucide-react";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { useAuth } from "@clerk/nextjs";
 
+// Import Error Boundary & Section Components
+import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
+import FeaturedSection from "./components/FeaturedSection";
+import ExploreFeedSection from "./components/ExploreFeedSection";
+import ForYouFeedSection from "./components/ForYouFeedSection";
+
+// Dynamically import heavy UI elements to reduce bundle size and speed up FCP
+const MobileNav = dynamic(() => import("@/components/navigation/MobileNav"), { ssr: false });
+
 export default function Home() {
     const router = useRouter();
-    const [queryText, setQueryText] = useState("");
     const [activeTab, setActiveTab] = useState<"explore" | "foryou">("explore");
     const { userId, isSignedIn } = useAuth();
     const targetId = isSignedIn ? (userId || "") : (typeof window !== "undefined" ? localStorage.getItem("puladrive_anon_id") || "" : "");
 
-    const { results: vehicles, status: paginationStatus, loadMore } = usePaginatedQuery(
-        api.vehicles.listPaginated,
-        {},
-        { initialNumItems: 12 }
-    );
-    const forYouVehicles = useQuery(api.vehicles.getForYouFeed, { targetId: targetId || undefined });
-    const featuredVehicles = useQuery(api.vehicles.getFeatured);
     const { history } = useSearchHistory();
     const { trackEvent } = useTelemetry();
 
@@ -78,23 +73,20 @@ export default function Home() {
                     />
                 </div>
 
-                {/* ── AI Deal Finder banner ────────────────────────────── */}
+                {/* AI Deal Finder banner */}
                 <Link
                     href="/search/advanced"
                     id="home-ai-deal-finder-btn"
                     className="flex items-center justify-between w-full px-5 py-4 rounded-2xl text-white font-bold text-sm group relative overflow-hidden shadow-xl"
                     style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%)" }}
                 >
-                    {/* shimmer on hover */}
                     <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                         style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)" }}
                     />
-                    {/* glow orbs */}
                     <span className="absolute -top-6 -left-6 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
                     <span className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
 
                     <span className="relative flex items-center gap-3">
-                        {/* pulsing live dot */}
                         <span className="relative flex h-2.5 w-2.5 shrink-0">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
                             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
@@ -114,7 +106,7 @@ export default function Home() {
                     </span>
                 </Link>
 
-                {/* ── Recent searches strip (if any) ──────────────────── */}
+                {/* Recent searches strip */}
                 {history.length > 0 && (
                     <div className="space-y-2">
                         <p className="flex items-center gap-1.5 text-[10px] uppercase font-black tracking-widest text-slate-400">
@@ -148,8 +140,11 @@ export default function Home() {
                         <Link
                             key={tab.id}
                             href={tab.id === "all" ? "/search" : `/search?category=${tab.id}`}
-                            className={`whitespace-nowrap px-6 py-2 rounded-full text-sm font-bold transition-all ${i === 0 ? "bg-primary-600 text-white shadow-md shadow-primary-200" : "bg-white text-slate-600 border border-slate-200 hover:border-primary-200 hover:bg-primary-50"
-                                }`}
+                            className={`whitespace-nowrap px-6 py-2 rounded-full text-sm font-bold transition-all ${
+                                i === 0 
+                                    ? "bg-primary-600 text-white shadow-md shadow-primary-200" 
+                                    : "bg-white text-slate-600 border border-slate-200 hover:border-primary-200 hover:bg-primary-50"
+                            }`}
                         >
                             {tab.label}
                         </Link>
@@ -157,23 +152,10 @@ export default function Home() {
                 </div>
             </header>
 
-            {/* Featured Listings Horizontal Carousel */}
-            {featuredVehicles && featuredVehicles.length > 0 && (
-                <section className="mb-10">
-                    <div className="flex justify-between items-end mb-6">
-                        <div className="flex items-center gap-2">
-                            <span className="flex h-2.5 w-2.5 relative">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary-500"></span>
-                            </span>
-                            <h2 className="text-xl font-black text-slate-900 tracking-tight">Featured Listings</h2>
-                        </div>
-                    </div>
-                    <div className="-mx-4 sm:mx-0">
-                        <FeaturedCarousel cars={featuredVehicles} />
-                    </div>
-                </section>
-            )}
+            {/* Featured Listings Horizontal Carousel (Error Isolated) */}
+            <SectionErrorBoundary sectionName="Featured Listings">
+                <FeaturedSection />
+            </SectionErrorBoundary>
 
             {/* Feed Selector (Explore vs For You) */}
             <section>
@@ -210,93 +192,16 @@ export default function Home() {
                 </div>
 
                 {activeTab === "explore" ? (
-                    paginationStatus === "LoadingFirstPage" ? (
-                        <SkeletonGrid />
-                    ) : (
-                        <div className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {vehicles.map((car: any, i: number) => (
-                                    <CarCard key={car._id} car={car} priority={i === 0} />
-                                ))}
-                            </div>
-                            {paginationStatus === "CanLoadMore" && (
-                                <div className="flex justify-center pt-4">
-                                    <button
-                                        onClick={() => loadMore(12)}
-                                        className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 hover:border-primary-500 hover:text-primary-600 rounded-full font-bold text-sm text-slate-700 shadow-sm transition-all hover:shadow-md cursor-pointer"
-                                    >
-                                        Load More Vehicles
-                                    </button>
-                                </div>
-                            )}
-                            {paginationStatus === "LoadingMore" && (
-                                <div className="flex justify-center pt-4">
-                                    <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary-600 animate-spin" />
-                                </div>
-                            )}
-                        </div>
-                    )
+                    <SectionErrorBoundary sectionName="Explore Feed">
+                        <ExploreFeedSection />
+                    </SectionErrorBoundary>
                 ) : (
-                    !forYouVehicles ? (
-                        <SkeletonGrid />
-                    ) : forYouVehicles.length === 0 ? (
-                        <div className="flex flex-col items-center py-16 px-6 text-center rounded-[2rem] bg-gradient-to-br from-indigo-50 via-violet-50 to-white border border-indigo-100 space-y-6">
-                            {/* Animated icon */}
-                            <div className="relative w-24 h-24 flex items-center justify-center">
-                                <div className="absolute inset-0 bg-violet-400/20 rounded-full blur-2xl animate-pulse" />
-                                <div className="relative w-20 h-20 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-3xl flex items-center justify-center shadow-xl border border-violet-400/20">
-                                    <Sparkles size={36} className="text-white animate-pulse" />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2 max-w-sm">
-                                <h3 className="text-xl font-black text-slate-900">Training your personal feed</h3>
-                                <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                                    Browse cars, heart listings, and search to help us tailor recommendations just for you.
-                                </p>
-                            </div>
-
-                            {/* Activity prompts */}
-                            <div className="w-full max-w-sm grid grid-cols-1 gap-2 text-left">
-                                {[
-                                    { step: "1", action: "View a few car listings", icon: "👀" },
-                                    { step: "2", action: "Heart the ones you love", icon: "❤️" },
-                                    { step: "3", action: "Use AI Deal Finder once", icon: "✨" },
-                                ].map((item) => (
-                                    <div key={item.step} className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-indigo-100 shadow-sm">
-                                        <span className="text-xl">{item.icon}</span>
-                                        <p className="text-xs font-bold text-slate-700 flex-1">{item.action}</p>
-                                        <span className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-black text-indigo-600">{item.step}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <button
-                                onClick={() => setActiveTab("explore")}
-                                className="flex items-center gap-2 px-6 py-3 font-black text-sm text-white rounded-2xl shadow-lg shadow-indigo-200 transition-all"
-                                style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
-                            >
-                                <ArrowRight size={16} /> Start Exploring
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {forYouVehicles.map((car: any, i: number) => (
-                                    <CarCard key={car._id} car={car} priority={i === 0} />
-                                ))}
-                            </div>
-                            <div className="flex justify-center pt-4">
-                                <button
-                                    onClick={() => setActiveTab("explore")}
-                                    className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 hover:border-primary-500 hover:text-primary-600 rounded-full font-bold text-sm text-slate-700 shadow-sm transition-all hover:shadow-md"
-                                >
-                                    Explore More
-                                    <ArrowRight size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    )
+                    <SectionErrorBoundary sectionName="For You Feed">
+                        <ForYouFeedSection 
+                            targetId={targetId} 
+                            onStartExploring={() => setActiveTab("explore")} 
+                        />
+                    </SectionErrorBoundary>
                 )}
             </section>
 
