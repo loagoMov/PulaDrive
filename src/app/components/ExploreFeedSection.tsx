@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import CarCard from "@/components/ui/CarCard";
@@ -11,6 +12,37 @@ export default function ExploreFeedSection() {
     {},
     { initialNumItems: 12 }
   );
+
+  const [shuffledVehicles, setShuffledVehicles] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (vehicles) {
+      // 1. Get or create a session seed
+      let seedStr = sessionStorage.getItem("puladrive_session_seed");
+      if (!seedStr) {
+        seedStr = Math.floor(Math.random() * 1000000).toString();
+        sessionStorage.setItem("puladrive_session_seed", seedStr);
+      }
+      let seed = parseInt(seedStr, 10);
+      if (isNaN(seed)) {
+        seed = 123456; // Secure fallback
+      }
+
+      // 2. Simple LCG PRNG helper
+      const pseudoRandom = () => {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      };
+
+      // 3. Seeded Fisher-Yates shuffle
+      const arr = [...vehicles];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(pseudoRandom() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      setShuffledVehicles(arr);
+    }
+  }, [vehicles]);
 
   if (paginationStatus === "LoadingFirstPage") {
     return <SkeletonGrid />;
@@ -27,7 +59,7 @@ export default function ExploreFeedSection() {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {vehicles.map((car: any, i: number) => (
+        {shuffledVehicles.map((car: any, i: number) => (
           <CarCard key={car._id} car={car} priority={i === 0} />
         ))}
       </div>

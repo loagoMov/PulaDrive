@@ -50,7 +50,6 @@ export default function CarCard({ car, priority = false }: CarCardProps) {
                             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 420px"
                             className="object-cover transition-transform duration-500 group-hover:scale-110"
                             priority={priority}
-                            loading={priority ? "eager" : "lazy"}
                         />
                         <div className="absolute top-3 left-3">
                             <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColors[car.status]}`}>
