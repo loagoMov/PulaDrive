@@ -289,17 +289,93 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
                         ))}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                        {vehicles.map((car: any) => (
-                            <div key={car._id} className="relative">
-                                <div className={`absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-lg ${
-                                    car.matchScore >= 0.75 ? "bg-emerald-500" :
-                                    car.matchScore >= 0.50 ? "bg-amber-400" : "bg-slate-400"
-                                }`}>
-                                    {Math.round(car.matchScore * 100)}% match
+                        {vehicles.map((car: any) => {
+                            const pct = Math.round(car.matchScore * 100);
+                            const isTop     = car.matchScore >= 0.75;
+                            const isGood    = car.matchScore >= 0.50;
+                            const tier      = isTop ? "Top Pick" : isGood ? "Great Match" : "Fair Match";
+                            const ringColor = isTop
+                                ? "from-emerald-400 to-teal-400"
+                                : isGood
+                                ? "from-amber-400 to-orange-400"
+                                : "from-slate-400 to-slate-500";
+                            const glowColor = isTop
+                                ? "shadow-emerald-400/40"
+                                : isGood
+                                ? "shadow-amber-400/40"
+                                : "shadow-slate-400/20";
+                            const textColor = isTop
+                                ? "text-emerald-600"
+                                : isGood
+                                ? "text-amber-600"
+                                : "text-slate-500";
+                            const bgColor = isTop
+                                ? "bg-emerald-50/90 border-emerald-200/60"
+                                : isGood
+                                ? "bg-amber-50/90 border-amber-200/60"
+                                : "bg-white/90 border-slate-200/60";
+
+                            return (
+                                <div key={car._id} className="relative">
+                                    {/* ── Match Badge ─────────────────────────────────── */}
+                                    <div className={`
+                                        absolute top-3 left-3 z-10
+                                        flex items-center gap-2
+                                        ${bgColor}
+                                        backdrop-blur-md
+                                        border
+                                        rounded-2xl
+                                        px-3 py-2
+                                        shadow-lg ${glowColor}
+                                        shadow-md
+                                    `}>
+                                        {/* Mini arc ring */}
+                                        <div className="relative w-8 h-8 shrink-0">
+                                            <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
+                                                {/* Track */}
+                                                <circle
+                                                    cx="16" cy="16" r="12"
+                                                    fill="none"
+                                                    strokeWidth="3"
+                                                    stroke="currentColor"
+                                                    className="text-slate-200"
+                                                />
+                                                {/* Progress */}
+                                                <circle
+                                                    cx="16" cy="16" r="12"
+                                                    fill="none"
+                                                    strokeWidth="3"
+                                                    strokeLinecap="round"
+                                                    stroke="url(#matchGrad)"
+                                                    strokeDasharray={`${(pct / 100) * 75.4} 75.4`}
+                                                />
+                                                <defs>
+                                                    <linearGradient id="matchGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                        <stop offset="0%" stopColor={isTop ? "#34d399" : isGood ? "#fbbf24" : "#94a3b8"} />
+                                                        <stop offset="100%" stopColor={isTop ? "#2dd4bf" : isGood ? "#fb923c" : "#64748b"} />
+                                                    </linearGradient>
+                                                </defs>
+                                            </svg>
+                                            <span className={`absolute inset-0 flex items-center justify-center text-[9px] font-black ${textColor}`}>
+                                                {pct}
+                                            </span>
+                                        </div>
+
+                                        {/* Text */}
+                                        <div>
+                                            <p className={`text-[11px] font-black leading-none ${textColor}`}>
+                                                {pct}% match
+                                            </p>
+                                            <p className="text-[9px] font-bold text-slate-400 leading-none mt-0.5 uppercase tracking-wide">
+                                                {tier}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <CarCard car={car} />
                                 </div>
-                                <CarCard car={car} />
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </>
             )}

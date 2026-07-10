@@ -5,6 +5,18 @@ import { isGlobalAdmin, requireGlobalAdmin } from "./utils";
 import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "./rateLimit";
 import { buildInvoiceNumber, generateInvoiceUrl } from "./billing";
 
+async function resolveImageUrl(ctx: any, img: string | undefined): Promise<string | null> {
+    if (!img) return null;
+    if (img.startsWith("http://") || img.startsWith("https://")) {
+        return img;
+    }
+    try {
+        return await ctx.storage.getUrl(img);
+    } catch {
+        return null;
+    }
+}
+
 // Helper to assert authentication
 async function requireAuth(ctx: any) {
     const identity = await ctx.auth.getUserIdentity();
@@ -121,7 +133,7 @@ export const list = query({
                     return {
                         ...app,
                         vehicleName: vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : "Unknown Vehicle",
-                        vehicleImage: vehicle?.images?.[0] ? await ctx.storage.getUrl(vehicle.images[0]) : null,
+                        vehicleImage: vehicle?.images?.[0] ? await resolveImageUrl(ctx, vehicle.images[0]) : null,
                         dealerName: dealer?.name || "Unknown Dealer",
                         featuredUntil: vehicle?.featuredUntil,
                     };
@@ -154,7 +166,7 @@ export const list = query({
                 return {
                     ...app,
                     vehicleName: vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : "Unknown Vehicle",
-                    vehicleImage: vehicle?.images?.[0] ? await ctx.storage.getUrl(vehicle.images[0]) : null,
+                    vehicleImage: vehicle?.images?.[0] ? await resolveImageUrl(ctx, vehicle.images[0]) : null,
                     featuredUntil: vehicle?.featuredUntil,
                 };
             })

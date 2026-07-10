@@ -109,7 +109,7 @@ export default defineSchema({
         model: v.string(),
         price: v.number(),
         year: v.number(),
-        images: v.array(v.id("_storage")),
+        images: v.array(v.string()),
         status: v.union(
             v.literal("available"),
             v.literal("reserved"),

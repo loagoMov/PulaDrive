@@ -4,7 +4,8 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Share2, Heart, MessageCircle, MapPin, Calendar, Gauge, Fuel, Zap, SlidersHorizontal, Flag, Check } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, Share2, Heart, MessageCircle, MapPin, Calendar, Gauge, Fuel, Zap, SlidersHorizontal, Flag, Check, Phone, ShieldCheck, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -120,6 +121,17 @@ export default function VehicleDetailsClient() {
         }
     };
 
+    const contactPhone = vehicle.dealer?.contactPhone || vehicle.dealer?.phone || "";
+    const handleCall = () => {
+        if (contactPhone) {
+            capture("book_visit_clicked", {
+                vehicle_id: vehicle._id,
+                dealer_id: vehicle.dealerId
+            });
+            window.location.href = `tel:${contactPhone}`;
+        }
+    };
+
     return (
         <main className="min-h-screen bg-white lg:bg-slate-50 pt-16 lg:pt-0">
             {/* Mobile Top Bar */}
@@ -198,17 +210,22 @@ export default function VehicleDetailsClient() {
                                 setTouchStartX(null);
                             }}
                         >
-                            {images.map((src, i) => (
-                                <Image
-                                    key={src}
-                                    src={src}
-                                    alt={`${vehicle.make} ${vehicle.model} – photo ${i + 1}`}
-                                    fill
-                                    sizes="(max-width: 768px) 100vw, 60vw"
-                                    className={`object-cover transition-opacity duration-300 ${i === activeImage ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-                                    priority={i === 0}
-                                />
-                            ))}
+                            {images.map((src, i) => {
+                                // Only mount current, next, and previous images to optimize bandwidth for Botswana users
+                                const shouldRender = i === activeImage || i === activeImage + 1 || i === activeImage - 1;
+                                if (!shouldRender) return null;
+                                return (
+                                    <Image
+                                        key={src}
+                                        src={src}
+                                        alt={`${vehicle.make} ${vehicle.model} – photo ${i + 1}`}
+                                        fill
+                                        sizes="(max-width: 768px) 100vw, 60vw"
+                                        className={`object-cover transition-opacity duration-300 ${i === activeImage ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+                                        priority={i === 0}
+                                    />
+                                );
+                            })}
 
                             {images.length > 1 && (
                                 <>
@@ -344,6 +361,65 @@ export default function VehicleDetailsClient() {
                             </p>
                         </section>
 
+                        {/* AI Deal Finder Promo Banner */}
+                        <section className="border-t border-slate-100 pt-6">
+                            <Link
+                                href="/search/advanced"
+                                className="group block relative overflow-hidden rounded-3xl p-5 text-white transition-all hover:scale-[1.01] active:scale-[0.99]"
+                                style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #9333ea 100%)" }}
+                            >
+                                {/* Glow orbs */}
+                                <span className="absolute -top-10 -left-10 w-36 h-36 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                                <span className="absolute -bottom-8 -right-8 w-44 h-44 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+
+                                <div className="relative flex items-start justify-between gap-4">
+                                    <div className="flex-1 space-y-2.5">
+                                        {/* Live badge */}
+                                        <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm border border-white/20 rounded-full px-3 py-1">
+                                            <span className="flex h-1.5 w-1.5 relative shrink-0">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+                                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                                            </span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest opacity-90">AI Deal Finder · Smart Search</span>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-base font-black leading-snug">
+                                                Not sure this is the one?
+                                            </h3>
+                                            <p className="text-sm text-white/75 font-medium mt-0.5 leading-snug">
+                                                Let our AI rank every listing by how well it matches <em>your</em> budget, lifestyle and preferences.
+                                            </p>
+                                        </div>
+
+                                        {/* Trust signals */}
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                                            <span className="flex items-center gap-1.5 text-[11px] font-bold text-white/80">
+                                                <SlidersHorizontal size={11} className="opacity-80" /> Personalised to you
+                                            </span>
+                                            <span className="flex items-center gap-1.5 text-[11px] font-bold text-white/80">
+                                                <ShieldCheck size={11} className="opacity-80" /> Private &amp; secure
+                                            </span>
+                                            <span className="flex items-center gap-1.5 text-[11px] font-bold text-white/80">
+                                                <Zap size={11} className="opacity-80" /> Instant results
+                                            </span>
+                                        </div>
+
+                                        {/* CTA row */}
+                                        <div className="flex items-center gap-1.5 text-sm font-black text-white group-hover:gap-2.5 transition-all">
+                                            Find my perfect match
+                                            <ChevronRight size={15} className="text-white/70 group-hover:translate-x-1 transition-transform" />
+                                        </div>
+                                    </div>
+
+                                    {/* Icon block */}
+                                    <div className="shrink-0 w-14 h-14 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                                        <Sparkles size={26} className="text-white" />
+                                    </div>
+                                </div>
+                            </Link>
+                        </section>
+
                         {/* CTA Buttons — inline at the bottom of the content */}
                         <section className="space-y-3 border-t border-slate-100 pt-6 pb-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -357,10 +433,13 @@ export default function VehicleDetailsClient() {
                                     WhatsApp Dealer
                                 </button>
                                 <button
-                                    onClick={() => alert("Booking functionality coming soon! Please contact the dealer via WhatsApp to schedule a viewing.")}
-                                    className="bg-slate-900 hover:bg-slate-800 active:scale-95 text-white py-4 rounded-2xl font-black transition-all shadow-lg shadow-slate-200 text-sm w-full"
+                                    onClick={handleCall}
+                                    disabled={!contactPhone}
+                                    title={!contactPhone ? "This dealer hasn't registered a contact phone number yet" : undefined}
+                                    className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black transition-all shadow-lg shadow-slate-200 text-sm w-full"
                                 >
-                                    Book a Visit
+                                    <Phone size={18} />
+                                    Book via Call
                                 </button>
                             </div>
                             <div className="flex justify-end">
