@@ -274,7 +274,7 @@ for table in TABLES_TO_SYNC:
             
         resp = requests.get(export_url, timeout=30)
         if resp.status_code != 200:
-            print(f"Failed to fetch {table}: {resp.text}")
+            print(f"Failed to fetch {table}: status={resp.status_code}, reason={resp.reason}")
             break
             
         data = resp.json()
