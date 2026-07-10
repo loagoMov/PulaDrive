@@ -470,26 +470,49 @@ export default function GlobalAdminDashboard() {
                                             </td>
                                             {/* Subscription tier column */}
                                             <td className="px-6 py-4">
-                                                <select
-                                                    value={dealer.subscriptionTier ?? "starter"}
-                                                    disabled={tierUpdating === dealer._id}
-                                                    onChange={async (e) => {
-                                                        setTierUpdating(dealer._id);
-                                                        try {
-                                                            await setDealerTier({ dealerId: dealer._id, tier: e.target.value as any });
-                                                        } catch (err) {
-                                                            console.error(err);
-                                                        } finally {
-                                                            setTierUpdating(null);
+                                                <div className="flex flex-col">
+                                                    <select
+                                                        value={dealer.subscriptionTier ?? "starter"}
+                                                        disabled={tierUpdating === dealer._id}
+                                                        onChange={async (e) => {
+                                                            setTierUpdating(dealer._id);
+                                                            try {
+                                                                await setDealerTier({ dealerId: dealer._id, tier: e.target.value as any });
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                            } finally {
+                                                                setTierUpdating(null);
+                                                            }
+                                                        }}
+                                                        className="text-xs font-black border border-slate-200 rounded-xl px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer disabled:opacity-50 w-full"
+                                                    >
+                                                        <option value="starter">🌱 Starter — 50 slots</option>
+                                                        <option value="growth">⚡ Growth — 150 slots</option>
+                                                        <option value="unlimited">∞ Unlimited</option>
+                                                    </select>
+                                                    {tierUpdating === dealer._id && <Loader2 size={12} className="animate-spin inline ml-2 text-slate-400 mt-1" />}
+                                                    {(() => {
+                                                        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+                                                        const lastBillingTime = dealer.subscriptionTierLastInvoiced ?? dealer.subscriptionTierStartDate ?? dealer._creationTime;
+                                                        const nextDueDate = lastBillingTime + 30 * ONE_DAY_MS;
+                                                        const msRemaining = nextDueDate - Date.now();
+                                                        const daysRemaining = Math.ceil(msRemaining / ONE_DAY_MS);
+                                                        
+                                                        if (daysRemaining > 0) {
+                                                            return (
+                                                                <div className="text-[10px] text-slate-500 font-semibold mt-1">
+                                                                    Due in <span className="font-bold text-slate-700">{daysRemaining} days</span>
+                                                                </div>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <div className="text-[10px] text-rose-500 font-bold mt-1 animate-pulse">
+                                                                    Overdue ({Math.abs(daysRemaining)} days ago)
+                                                                </div>
+                                                            );
                                                         }
-                                                    }}
-                                                    className="text-xs font-black border border-slate-200 rounded-xl px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer disabled:opacity-50"
-                                                >
-                                                    <option value="starter">🌱 Starter — 50 slots</option>
-                                                    <option value="growth">⚡ Growth — 150 slots</option>
-                                                    <option value="unlimited">∞ Unlimited</option>
-                                                </select>
-                                                {tierUpdating === dealer._id && <Loader2 size={12} className="animate-spin inline ml-2 text-slate-400" />}
+                                                    })()}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1.5 max-w-xs">
@@ -984,9 +1007,32 @@ export default function GlobalAdminDashboard() {
                                                     <p className="text-[10px] text-slate-400">{dealer.clientCustomId ?? "—"}</p>
                                                 </td>
                                                 <td className="px-6 py-3">
-                                                    <span className={`text-[11px] font-black px-2.5 py-1 rounded-full ${TIER_COLORS[tier]}`}>
-                                                        {tier.charAt(0).toUpperCase() + tier.slice(1)}
-                                                    </span>
+                                                    <div className="flex flex-col">
+                                                        <span className={`text-[11px] font-black px-2.5 py-1 rounded-full w-fit ${TIER_COLORS[tier]}`}>
+                                                            {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                                                        </span>
+                                                        {(() => {
+                                                            const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+                                                            const lastBillingTime = dealer.subscriptionTierLastInvoiced ?? dealer.subscriptionTierStartDate ?? dealer._creationTime;
+                                                            const nextDueDate = lastBillingTime + 30 * ONE_DAY_MS;
+                                                            const msRemaining = nextDueDate - Date.now();
+                                                            const daysRemaining = Math.ceil(msRemaining / ONE_DAY_MS);
+                                                            
+                                                            if (daysRemaining > 0) {
+                                                                return (
+                                                                    <span className="text-[10px] text-slate-500 font-semibold mt-1">
+                                                                        Due in <span className="font-bold text-slate-700">{daysRemaining} days</span>
+                                                                    </span>
+                                                                );
+                                                            } else {
+                                                                return (
+                                                                    <span className="text-[10px] text-rose-500 font-bold mt-1 animate-pulse">
+                                                                        Overdue ({Math.abs(daysRemaining)} days ago)
+                                                                    </span>
+                                                                );
+                                                            }
+                                                        })()}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-3">
                                                     <select

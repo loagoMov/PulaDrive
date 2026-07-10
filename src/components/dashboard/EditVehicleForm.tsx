@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
 import { X, Upload, CheckCircle2, Loader2, Trash2, AlertTriangle, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import { compressImage } from "@/utils/imageCompressor";
+import { uploadVehicleImage } from "@/utils/uploadToSupabase";
 
 // ─── Security constants ────────────────────────────────────────────────────────
 const MAX_FILE_SIZE_MB = 5;
@@ -22,7 +23,7 @@ interface EditVehicleFormProps {
 export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormProps) {
     const updateVehicle = useMutation(api.vehicles.update);
     const removeVehicle = useMutation(api.vehicles.remove);
-    const generateUploadUrl = useMutation(api.vehicles.generateUploadUrl);
+    const { session } = useSession();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -118,24 +119,19 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
 
         const formData = new FormData(e.currentTarget);
         try {
-            let storageIds = vehicle.images || [];
+            let imageUrls: string[] = vehicle.images || [];
 
-            // Upload new files if any
+            // Upload any new files to Supabase Storage
             const allFiles = [...exteriorFiles, ...interiorFiles, ...engineBayFiles];
             if (allFiles.length > 0) {
-                const newStorageIds: Id<"_storage">[] = [];
+                const newUrls: string[] = [];
                 for (const file of allFiles) {
                     const compressedFile = await compressImage(file, 1200, 0.82);
-                    const postUrl = await generateUploadUrl();
-                    const result = await fetch(postUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": compressedFile.type },
-                        body: compressedFile,
-                    });
-                    const { storageId } = await result.json();
-                    newStorageIds.push(storageId as Id<"_storage">);
+                    const token = await session?.getToken({ template: "supabase" }) ?? undefined;
+                    const url = await uploadVehicleImage(compressedFile, "listings", token);
+                    newUrls.push(url);
                 }
-                storageIds = [...storageIds, ...newStorageIds];
+                imageUrls = [...imageUrls, ...newUrls];
             }
 
             await updateVehicle({
@@ -152,7 +148,7 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
                 color: formData.get("color") as string,
                 status: formData.get("status") as any,
                 description: formData.get("description") as string,
-                images: storageIds,
+                images: imageUrls,
             });
 
             setSuccess(true);

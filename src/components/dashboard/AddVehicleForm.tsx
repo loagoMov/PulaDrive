@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { X, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { compressImage } from "@/utils/imageCompressor";
+import { uploadVehicleImage } from "@/utils/uploadToSupabase";
 
 // ─── Security constants ──────────────────────────────────────────────────────
 const MAX_FILE_SIZE_MB = 5;
@@ -25,7 +27,7 @@ interface FilePreview {
 
 export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProps) {
     const createVehicle = useMutation(api.vehicles.create);
-    const generateUploadUrl = useMutation(api.vehicles.generateUploadUrl);
+    const { session } = useSession();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
     const [showFrozenModal, setShowFrozenModal] = useState(false);
@@ -116,24 +118,18 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
 
         const formData = new FormData(e.currentTarget);
         try {
-            // Upload files to Convex Storage first
-            const storageIds: Id<"_storage">[] = [];
+            // Upload files directly to Supabase Storage
+            const imageUrls: string[] = [];
             const allFiles = [
                 ...exteriorFiles.map(f => f.file),
                 ...interiorFiles.map(f => f.file),
                 ...engineBayFiles.map(f => f.file)
             ];
             for (const file of allFiles) {
-                // Compress the image before uploading
                 const compressedFile = await compressImage(file, 1200, 0.82);
-                const postUrl = await generateUploadUrl();
-                const result = await fetch(postUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": compressedFile.type },
-                    body: compressedFile,
-                });
-                const { storageId } = await result.json();
-                storageIds.push(storageId as Id<"_storage">);
+                const token = await session?.getToken({ template: "supabase" }) ?? undefined;
+                const url = await uploadVehicleImage(compressedFile, "listings", token);
+                imageUrls.push(url);
             }
 
             const data = {
@@ -149,7 +145,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                 engineSize: formData.get("engineSize") as string,
                 color: formData.get("color") as string,
                 status: "available" as const,
-                images: storageIds,
+                images: imageUrls,
                 description: formData.get("description") as string,
             };
 

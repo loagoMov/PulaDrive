@@ -4,6 +4,18 @@ import { v, ConvexError } from "convex/values";
 import { requireGlobalAdmin, isGlobalAdmin } from "./utils";
 import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "./rateLimit";
 
+async function resolveImageUrl(ctx: any, img: string | undefined): Promise<string | null> {
+    if (!img) return null;
+    if (img.startsWith("http://") || img.startsWith("https://")) {
+        return img;
+    }
+    try {
+        return await ctx.storage.getUrl(img);
+    } catch {
+        return null;
+    }
+}
+
 
 
 // ─── Submit a report (any user, including guests) ────────────────────────────
@@ -130,7 +142,7 @@ export const listAll = query({
                 const vehicle  = await ctx.db.get(report.vehicleId);
                 const dealer   = await ctx.db.get(report.dealerId);
                 const imageUrl = vehicle?.images?.[0]
-                    ? await ctx.storage.getUrl(vehicle.images[0])
+                    ? await resolveImageUrl(ctx, vehicle.images[0])
                     : null;
 
                 return {

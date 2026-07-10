@@ -11,6 +11,25 @@ const MAX_IMAGES = 10;
 const MIN_YEAR = 1900;
 const MAX_YEAR = 2030;
 
+// ─── Image Resolver helper ──────────────────────────────────────────────────
+// Returns the image URL directly if it is a Supabase (or external) URL string,
+// or calls Convex storage getUrl if it is a legacy Convex storage ID.
+async function resolveImageUrls(ctx: any, images: string[] | undefined): Promise<string[]> {
+    if (!images) return [];
+    return (await Promise.all(
+        images.map(async (img) => {
+            if (img.startsWith("http://") || img.startsWith("https://")) {
+                return img;
+            }
+            try {
+                return await ctx.storage.getUrl(img);
+            } catch (err) {
+                return null;
+            }
+        })
+    )).filter((url): url is string => url !== null);
+}
+
 // ─── Auth helper ─────────────────────────────────────────────────────────────
 async function requireAuth(ctx: any) {
     const identity = await ctx.auth.getUserIdentity();
@@ -78,9 +97,7 @@ export const listPaginated = query({
         const page = await Promise.all(
             paginatedResults.page.map(async (car) => ({
                 ...car,
-                imageUrls: (await Promise.all(
-                    car.images.map(async (id) => await ctx.storage.getUrl(id))
-                )).filter((url) => url !== null) as string[],
+                imageUrls: await resolveImageUrls(ctx, car.images),
             }))
         );
 
@@ -112,9 +129,7 @@ export const list = query({
         return Promise.all(
             results.map(async (car) => ({
                 ...car,
-                imageUrls: (await Promise.all(
-                    car.images.map(async (id) => await ctx.storage.getUrl(id))
-                )).filter((url) => url !== null) as string[],
+                imageUrls: await resolveImageUrls(ctx, car.images),
             }))
         );
     },
@@ -130,10 +145,13 @@ export const getVehicle = query({
         const dealer = await ctx.db.get(car.dealerId);
         return {
             ...car,
-            dealer: dealer ? { name: dealer.name, location: dealer.location, phone: dealer.phone ?? "" } : null,
-            imageUrls: (await Promise.all(
-                car.images.map(async (id) => await ctx.storage.getUrl(id))
-            )).filter((url) => url !== null) as string[],
+            dealer: dealer ? {
+                name: dealer.name,
+                location: dealer.location,
+                phone: dealer.phone ?? "",
+                contactPhone: dealer.contactPhone ?? ""
+            } : null,
+            imageUrls: await resolveImageUrls(ctx, car.images),
         };
     },
 });
@@ -150,9 +168,7 @@ export const getByDealerId = query({
         return Promise.all(
             results.map(async (car) => ({
                 ...car,
-                imageUrls: (await Promise.all(
-                    car.images.map(async (id) => await ctx.storage.getUrl(id))
-                )).filter((url) => url !== null) as string[],
+                imageUrls: await resolveImageUrls(ctx, car.images),
             }))
         );
     },
@@ -193,9 +209,7 @@ export const search = query({
         return Promise.all(
             results.map(async (car) => ({
                 ...car,
-                images: (await Promise.all(
-                    car.images.map(async (id) => await ctx.storage.getUrl(id))
-                )).filter((url) => url !== null) as string[],
+                images: await resolveImageUrls(ctx, car.images),
             }))
         );
     },
@@ -225,7 +239,7 @@ export const create = mutation({
         model: v.string(),
         price: v.number(),
         year: v.number(),
-        images: v.array(v.id("_storage")),
+        images: v.array(v.string()),
         status: v.union(v.literal("available"), v.literal("reserved"), v.literal("sold")),
         description: v.optional(v.string()),
         mileage: v.optional(v.number()),
@@ -334,7 +348,7 @@ export const update = mutation({
             v.literal("van"),
             v.literal("luxury")
         )),
-        images: v.optional(v.array(v.id("_storage"))),
+        images: v.optional(v.array(v.string())),
     },
     handler: async (ctx, args) => {
         // V-02 + V-03 fix: require auth and ownership
@@ -389,10 +403,7 @@ export const remove = mutation({
             );
         }
 
-        // Clean up images from storage
-        for (const storageId of existing.images) {
-            await ctx.storage.delete(storageId);
-        }
+        // Images are stored on Supabase; no local storage cleanup needed.
 
         await ctx.db.delete(args.id);
     },
@@ -475,11 +486,7 @@ export const searchRanked = query({
                     priceProximityScore * 0.2 +
                     recencyScore * 0.1;
 
-                const imageUrls = car.images
-                    ? (await Promise.all(
-                        car.images.map(async (id) => await ctx.storage.getUrl(id))
-                    )).filter((url) => url !== null) as string[]
-                    : [];
+                const imageUrls = await resolveImageUrls(ctx, car.images);
 
                 return {
                     ...car,
@@ -508,11 +515,7 @@ export const getFeatured = query({
 
         const mapped = await Promise.all(
             results.map(async (car) => {
-                const imageUrls = car.images
-                    ? (await Promise.all(
-                        car.images.map(async (id) => await ctx.storage.getUrl(id))
-                      )).filter((url) => url !== null) as string[]
-                    : [];
+                const imageUrls = await resolveImageUrls(ctx, car.images);
                 return {
                     ...car,
                     imageUrls,
@@ -622,11 +625,7 @@ export const advancedSearch = query({
                     dealerScore  * 0.15 +
                     recencyScore * 0.15;
 
-                const imageUrls = car.images
-                    ? (await Promise.all(
-                        car.images.map((id) => ctx.storage.getUrl(id))
-                    )).filter((u) => u !== null) as string[]
-                    : [];
+                const imageUrls = await resolveImageUrls(ctx, car.images);
 
                 return { ...car, imageUrls, images: imageUrls, matchScore };
             })
@@ -669,9 +668,7 @@ export const getForYouFeed = query({
         return Promise.all(
             vehicles.map(async (car) => ({
                 ...car,
-                imageUrls: (await Promise.all(
-                    car.images.map(async (id: any) => await ctx.storage.getUrl(id))
-                )).filter((url) => url !== null) as string[],
+                imageUrls: await resolveImageUrls(ctx, car.images),
             }))
         );
     },
@@ -696,9 +693,7 @@ export const getByIds = query({
         return Promise.all(
             vehicles.map(async (car) => ({
                 ...car,
-                imageUrls: (await Promise.all(
-                    car.images.map(async (id) => await ctx.storage.getUrl(id))
-                )).filter((url) => url !== null) as string[],
+                imageUrls: await resolveImageUrls(ctx, car.images),
             }))
         );
     },

@@ -11,17 +11,31 @@ import { useUser, useOrganization } from "@clerk/nextjs";
 if (typeof window !== "undefined") {
   const consent = localStorage.getItem("puladrive_cookie_consent");
 
+  // Detect slow connections or data-saver mode to reduce data usage for Botswana users
+  const isSlowOrMetered = () => {
+    if (typeof navigator === "undefined") return false;
+    const conn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+    if (!conn) return false;
+    if (conn.saveData) return true;
+    const slowConnectionTypes = ["slow-2g", "2g", "3g"];
+    if (slowConnectionTypes.includes(conn.effectiveType)) return true;
+    return false;
+  };
+
+  const slowConn = isSlowOrMetered();
+
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN!, {
     api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     defaults: "2026-05-30",
 
     // ── Capture ──────────────────────────────────────────────────────────
     capture_pageview: false,       // handled manually below for SPA routing
-    capture_pageleave: true,
-    autocapture: true,             // rage-clicks, dead-clicks, form interactions
+    capture_pageleave: !slowConn,
+    autocapture: !slowConn,        // Disable rage/dead clicks and form tracking on slow connections
 
     // ── Session Recording ────────────────────────────────────────────────
-    session_recording: {
+    disable_session_recording: slowConn,
+    session_recording: slowConn ? undefined : {
       maskAllInputs: false,        // keeps input text visible in replays
       maskInputFn: (text, element) => {
         // Mask password and payment fields
@@ -34,7 +48,7 @@ if (typeof window !== "undefined") {
     },
 
     // ── Heatmaps ─────────────────────────────────────────────────────────
-    enable_heatmaps: true,
+    enable_heatmaps: !slowConn,
 
     // ── Persistence ──────────────────────────────────────────────────────
     persistence: "localStorage+cookie",

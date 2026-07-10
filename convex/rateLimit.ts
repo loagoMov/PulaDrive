@@ -17,12 +17,12 @@ export const RATE_LIMITS = {
     REPORT_GUEST:        { maxRequests: 2,  windowMs: 60 * 60_000 } satisfies RateLimitConfig,
     // Authenticated report
     REPORT_USER:         { maxRequests: 5,  windowMs: 60 * 60_000 } satisfies RateLimitConfig,
-    // Storage upload URL generation — billing attack vector
-    UPLOAD_URL:          { maxRequests: 20, windowMs: 60 * 60_000 } satisfies RateLimitConfig,
-    // New vehicle listing creation
-    CREATE_VEHICLE:      { maxRequests: 10, windowMs: 60 * 60_000 } satisfies RateLimitConfig,
+    // Storage upload URL generation — scaled for batch uploads (up to 10 images/car for 15 cars)
+    UPLOAD_URL:          { maxRequests: 200, windowMs: 10 * 60_000 } satisfies RateLimitConfig,
+    // New vehicle listing creation — updated to allow 15 listings every 10 minutes
+    CREATE_VEHICLE:      { maxRequests: 15,  windowMs: 10 * 60_000 } satisfies RateLimitConfig,
     // Vehicle edits — more generous
-    UPDATE_VEHICLE:      { maxRequests: 30, windowMs: 60 * 60_000 } satisfies RateLimitConfig,
+    UPDATE_VEHICLE:      { maxRequests: 50,  windowMs: 10 * 60_000 } satisfies RateLimitConfig,
     // Featured listing application — payment intent, so very low limit
     FEATURED_APPLY:      { maxRequests: 3,  windowMs: 60 * 60_000 } satisfies RateLimitConfig,
     // Search history saves
