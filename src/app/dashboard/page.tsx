@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { UserButton, useOrganization, useUser } from "@clerk/nextjs";
 import MobileNav from "@/components/navigation/MobileNav";
-import { Plus, TrendingUp, Car, Loader2, Flame, Users, Trash2, Phone, CreditCard, AlertCircle, Shield, Layers, MapPin, Mail, Globe, FileText, Store } from "lucide-react";
+import { Plus, TrendingUp, Car, Loader2, Flame, Users, Trash2, Phone, CreditCard, AlertCircle, Shield, Layers, MapPin, Mail, Globe, FileText, Store, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import NotificationCenter from "../components/NotificationCenter";
@@ -66,6 +66,23 @@ export default function DealerDashboard() {
         const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
         if (days > 0) return `${days}d ${hours}h left`;
         return `${hours}h left`;
+    };
+
+    const isActivelyPromoted = (car: any) =>
+        Boolean(car.featuredUntil && car.featuredUntil > Date.now());
+
+    const handleStatusUpdate = async (car: any, value: "available" | "reserved" | "sold") => {
+        if (car.status === value) return;
+        const wasPromoted = isActivelyPromoted(car);
+        setStatusUpdating(car._id);
+        try {
+            await updateVehicle({ id: car._id, status: value });
+            if (value === "sold" && wasPromoted) {
+                setPromotingVehicle({ ...car, status: "sold" });
+            }
+        } finally {
+            setStatusUpdating(null);
+        }
     };
 
     if (!organization || !dealership) {
@@ -164,6 +181,9 @@ export default function DealerDashboard() {
     const vehicleList = vehicles ?? [];
     const activeListings = vehicleList.filter((v: any) => v.status === "available").length;
     const soldListings   = vehicleList.filter((v: any) => v.status === "sold").length;
+    const soldWhilePromoted = vehicleList.filter(
+        (v: any) => v.status === "sold" && isActivelyPromoted(v)
+    );
     const totalValue     = vehicleList.reduce((sum: number, v: any) => sum + (v.price ?? 0), 0);
     const formatValue    = (val: number) =>
         val >= 1_000_000
@@ -241,6 +261,29 @@ export default function DealerDashboard() {
 
                 {/* ── Inventory Section ──────────────────────────────────────── */}
                 <section className="space-y-4">
+                    {soldWhilePromoted.length > 0 && (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                                <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                                <div>
+                                    <p className="text-sm font-black text-amber-900">
+                                        {soldWhilePromoted.length === 1
+                                            ? "1 sold vehicle still has an active promotion"
+                                            : `${soldWhilePromoted.length} sold vehicles still have active promotions`}
+                                    </p>
+                                    <p className="text-xs text-amber-700 font-medium mt-0.5">
+                                        Remove promotions from sold inventory to free featured slots for available listings.
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setPromotingVehicle(soldWhilePromoted[0])}
+                                className="shrink-0 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-colors"
+                            >
+                                Review &amp; Remove
+                            </button>
+                        </div>
+                    )}
                     <div className="flex justify-between items-center">
                         <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Vehicle Inventory</h2>
                         <div className="flex items-center gap-2">
@@ -328,12 +371,16 @@ export default function DealerDashboard() {
                                                 <div>
                                                     <p className="font-bold text-slate-900 text-sm leading-none">{car.make} {car.model}</p>
                                                     <p className="text-xs text-slate-400 font-medium pt-1">{car.year}</p>
-                                                    {car.featuredUntil && car.featuredUntil > Date.now() && (
-                                                        <div className="flex items-center gap-1 mt-1.5 text-[10px] font-black uppercase tracking-wider text-indigo-600">
-                                                            <Flame size={12} className="text-amber-500 fill-amber-500 animate-pulse" />
-                                                            <span>Promo ({getCountdown(car.featuredUntil)})</span>
-                                                        </div>
-                                                    )}
+                                        {car.featuredUntil && car.featuredUntil > Date.now() && (
+                                            <div className={`flex items-center gap-1 mt-1.5 text-[10px] font-black uppercase tracking-wider ${
+                                                car.status === "sold" ? "text-rose-600" : "text-indigo-600"
+                                            }`}>
+                                                <Flame size={12} className="text-amber-500 fill-amber-500 animate-pulse" />
+                                                <span>
+                                                    {car.status === "sold" ? "Sold — promo still active" : `Promo (${getCountdown(car.featuredUntil)})`}
+                                                </span>
+                                            </div>
+                                        )}
                                                 </div>
                                             </div>
                                         </td>
@@ -353,15 +400,7 @@ export default function DealerDashboard() {
                                                         <button
                                                             key={value}
                                                             disabled={statusUpdating === car._id}
-                                                            onClick={async () => {
-                                                                if (car.status === value) return;
-                                                                setStatusUpdating(car._id);
-                                                                try {
-                                                                    await updateVehicle({ id: car._id, status: value });
-                                                                } finally {
-                                                                    setStatusUpdating(null);
-                                                                }
-                                                            }}
+                                                            onClick={() => handleStatusUpdate(car, value)}
                                                             className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50 ${
                                                                 car.status === value ? STATUS_STYLES[value].active : STATUS_STYLES[value].idle
                                                             }`}
@@ -373,7 +412,20 @@ export default function DealerDashboard() {
                                                 {/* Row actions */}
                                                 <div className="flex items-center gap-3">
                                                     <button onClick={() => setEditingVehicle(car)} className="text-primary-600 font-bold text-xs hover:underline no-tap-highlight">Edit</button>
-                                                    <button onClick={() => setPromotingVehicle(car)} className="text-indigo-600 font-bold text-xs hover:underline no-tap-highlight">Promote</button>
+                                                    {car.status === "sold" ? (
+                                                        isActivelyPromoted(car) ? (
+                                                            <button
+                                                                onClick={() => setPromotingVehicle(car)}
+                                                                className="text-rose-600 font-bold text-xs hover:underline no-tap-highlight"
+                                                            >
+                                                                Remove Promo
+                                                            </button>
+                                                        ) : (
+                                                            <span title="Cannot promote sold vehicles" className="text-slate-300 font-bold text-xs cursor-not-allowed">Promote</span>
+                                                        )
+                                                    ) : (
+                                                        <button onClick={() => setPromotingVehicle(car)} className="text-indigo-600 font-bold text-xs hover:underline no-tap-highlight">Promote</button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -427,9 +479,13 @@ export default function DealerDashboard() {
                                         </div>
                                         <p className="text-base font-black text-slate-900 mt-1">P {car.price.toLocaleString()}</p>
                                         {car.featuredUntil && car.featuredUntil > Date.now() && (
-                                            <div className="flex items-center gap-1 mt-1 text-[10px] font-black uppercase tracking-wider text-indigo-600">
+                                            <div className={`flex items-center gap-1 mt-1 text-[10px] font-black uppercase tracking-wider ${
+                                                car.status === "sold" ? "text-rose-600" : "text-indigo-600"
+                                            }`}>
                                                 <Flame size={11} className="text-amber-500 fill-amber-500 animate-pulse" />
-                                                <span>Promo — {getCountdown(car.featuredUntil)}</span>
+                                                <span>
+                                                    {car.status === "sold" ? "Sold — promo active" : `Promo — ${getCountdown(car.featuredUntil)}`}
+                                                </span>
                                             </div>
                                         )}
                                     </div>
@@ -443,15 +499,7 @@ export default function DealerDashboard() {
                                             <button
                                                 key={value}
                                                 disabled={statusUpdating === car._id}
-                                                onClick={async () => {
-                                                    if (car.status === value) return;
-                                                    setStatusUpdating(car._id);
-                                                    try {
-                                                        await updateVehicle({ id: car._id, status: value });
-                                                    } finally {
-                                                        setStatusUpdating(null);
-                                                    }
-                                                }}
+                                                onClick={() => handleStatusUpdate(car, value)}
                                                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50 no-tap-highlight ${
                                                     car.status === value ? STATUS_STYLES[value].active : STATUS_STYLES[value].idle
                                                 }`}
@@ -463,7 +511,20 @@ export default function DealerDashboard() {
                                     {/* Edit / Promote */}
                                     <div className="flex items-center gap-3 flex-shrink-0">
                                         <button onClick={() => setEditingVehicle(car)} className="text-primary-600 font-bold text-xs no-tap-highlight touch-target">Edit</button>
-                                        <button onClick={() => setPromotingVehicle(car)} className="text-indigo-600 font-bold text-xs no-tap-highlight touch-target">Promote</button>
+                                        {car.status === "sold" ? (
+                                            isActivelyPromoted(car) ? (
+                                                <button
+                                                    onClick={() => setPromotingVehicle(car)}
+                                                    className="text-rose-600 font-bold text-xs no-tap-highlight touch-target"
+                                                >
+                                                    Remove Promo
+                                                </button>
+                                            ) : (
+                                                <span title="Cannot promote sold vehicles" className="text-slate-300 font-bold text-xs cursor-not-allowed">Promote</span>
+                                            )
+                                        ) : (
+                                            <button onClick={() => setPromotingVehicle(car)} className="text-indigo-600 font-bold text-xs no-tap-highlight touch-target">Promote</button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -699,6 +760,18 @@ export default function DealerDashboard() {
                         </div>
                     </div>
                 </section>
+
+                {/* Portal Footer */}
+                <footer className="pt-6 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                    <div>
+                        © 2026 PulaDrive Dealer Network. All rights reserved.
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <Link href="/dashboard/howto" className="hover:text-primary-600 transition-colors flex items-center gap-1">
+                            Documentation &amp; How-To Guides <ExternalLink size={10} />
+                        </Link>
+                    </div>
+                </footer>
             </div>
 
             {showAddVehicle && (
@@ -712,6 +785,7 @@ export default function DealerDashboard() {
                 <EditVehicleForm
                     vehicle={editingVehicle}
                     onClose={() => setEditingVehicle(null)}
+                    onSoldWhilePromoted={(car) => setPromotingVehicle(car)}
                 />
             )}
 

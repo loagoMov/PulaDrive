@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSession } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { X, Upload, CheckCircle2, Loader2, Trash2, AlertTriangle, AlertCircle } from "lucide-react";
+import { X, Upload, CheckCircle2, Loader2, Trash2, AlertTriangle, AlertCircle, HandshakeIcon } from "lucide-react";
 import Image from "next/image";
 import { compressImage } from "@/utils/imageCompressor";
 import { uploadVehicleImage } from "@/utils/uploadToSupabase";
@@ -18,9 +18,10 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 interface EditVehicleFormProps {
     vehicle: any;
     onClose: () => void;
+    onSoldWhilePromoted?: (vehicle: any) => void;
 }
 
-export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormProps) {
+export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted }: EditVehicleFormProps) {
     const updateVehicle = useMutation(api.vehicles.update);
     const removeVehicle = useMutation(api.vehicles.remove);
     const { session } = useSession();
@@ -44,6 +45,7 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
 
     const [priceInput, setPriceInput] = useState(formatNumber(vehicle.price));
     const [mileageInput, setMileageInput] = useState(formatNumber(vehicle.mileage));
+    const [isNegotiable, setIsNegotiable] = useState<boolean>(vehicle.negotiable ?? false);
 
     const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setPriceInput(formatNumber(e.target.value));
@@ -134,6 +136,9 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
                 imageUrls = [...imageUrls, ...newUrls];
             }
 
+            const newStatus = formData.get("status") as "available" | "reserved" | "sold";
+            const wasPromoted = Boolean(vehicle.featuredUntil && vehicle.featuredUntil > Date.now());
+
             await updateVehicle({
                 id: vehicle._id,
                 make: formData.get("make") as string,
@@ -146,10 +151,17 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
                 transmission: formData.get("transmission") as string,
                 engineSize: formData.get("engineSize") as string,
                 color: formData.get("color") as string,
-                status: formData.get("status") as any,
+                status: newStatus,
                 description: formData.get("description") as string,
                 images: imageUrls,
+                negotiable: isNegotiable,
             });
+
+            if (newStatus === "sold" && vehicle.status !== "sold" && wasPromoted && onSoldWhilePromoted) {
+                onClose();
+                onSoldWhilePromoted({ ...vehicle, status: "sold" });
+                return;
+            }
 
             setSuccess(true);
             setTimeout(() => {
@@ -319,6 +331,36 @@ export default function EditVehicleForm({ vehicle, onClose }: EditVehicleFormPro
                             <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Description</label>
                             <textarea name="description" defaultValue={vehicle.description} rows={3} maxLength={2000} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all" />
                         </div>
+
+                        {/* Negotiable Toggle */}
+                        <button
+                            type="button"
+                            onClick={() => setIsNegotiable(v => !v)}
+                            className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                                isNegotiable
+                                    ? "border-amber-400 bg-amber-50"
+                                    : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-xl transition-colors ${
+                                    isNegotiable ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-400"
+                                }`}>
+                                    <HandshakeIcon size={18} />
+                                </div>
+                                <div className="text-left">
+                                    <p className={`text-sm font-black ${isNegotiable ? "text-amber-800" : "text-slate-700"}`}>Price Negotiable</p>
+                                    <p className="text-[10px] text-slate-400 font-medium">Buyers will see a &quot;Negotiable&quot; badge on this listing</p>
+                                </div>
+                            </div>
+                            <div className={`w-11 h-6 rounded-full transition-colors flex items-center ${
+                                isNegotiable ? "bg-amber-400" : "bg-slate-200"
+                            }`}>
+                                <div className={`w-5 h-5 bg-white rounded-full shadow-sm mx-0.5 transition-transform ${
+                                    isNegotiable ? "translate-x-5" : "translate-x-0"
+                                }`} />
+                            </div>
+                        </button>
 
                         <div className="space-y-4 pt-2">
                             <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Current Photos</label>
