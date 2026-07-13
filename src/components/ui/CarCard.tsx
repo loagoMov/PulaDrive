@@ -20,6 +20,7 @@ interface Car {
     transmission?: string;
     fuelType?: string;
     dealerId?: string;
+    negotiable?: boolean;
 }
 
 interface CarCardProps {
@@ -65,8 +66,13 @@ export default function CarCard({ car, priority = false }: CarCardProps) {
                         <h3 className="font-bold text-slate-900 group-hover:text-primary-600 transition-colors">
                             {car.make} {car.model}
                         </h3>
-                        <p className="text-xl font-black text-primary-700">
+                        <p className="text-xl font-black text-primary-700 flex items-center gap-2 flex-wrap">
                             P {car.price.toLocaleString()}
+                            {car.negotiable && (
+                                <span className="text-[9px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
+                                    Negotiable
+                                </span>
+                            )}
                         </p>
                         <div className="flex items-center gap-4 text-[10px] text-slate-600 font-bold pt-2">
                             <span>{car.transmission || "Automatic"}</span>

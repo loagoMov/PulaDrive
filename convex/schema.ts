@@ -131,6 +131,7 @@ export default defineSchema({
         )),
         engineSize: v.optional(v.string()),
         color: v.optional(v.string()),
+        negotiable: v.optional(v.boolean()),
         // Concatenated field for fuzzy search across make + model
         searchText: v.optional(v.string()),
         featuredUntil: v.optional(v.number()),

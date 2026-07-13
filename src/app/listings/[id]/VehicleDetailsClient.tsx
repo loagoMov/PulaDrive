@@ -5,8 +5,8 @@ import { api } from "../../../../convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Share2, Heart, MessageCircle, MapPin, Calendar, Gauge, Fuel, Zap, SlidersHorizontal, Flag, Check, Phone, ShieldCheck, Sparkles } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Share2, Heart, MessageCircle, MapPin, Calendar, Gauge, Fuel, Zap, SlidersHorizontal, Flag, Check, Phone, ShieldCheck, Sparkles, HandshakeIcon } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useAnalytics } from "@/hooks/useAnalytics";
@@ -24,6 +24,22 @@ export default function VehicleDetailsClient() {
     const [shareSuccess, setShareSuccess] = useState(false);
     const { toggle, isWishlisted } = useWishlist();
     const { capture } = useAnalytics();
+    // Track whether there's a browser history entry we can go back to.
+    // When a listing is opened directly (e.g. via a shared link) there is no
+    // previous page in session history, so router.back() would do nothing.
+    const canGoBack = useRef(false);
+    useEffect(() => {
+        // If the page was already in the session's history stack, history.length > 1
+        canGoBack.current = window.history.length > 1;
+    }, []);
+
+    const handleBack = () => {
+        if (canGoBack.current) {
+            router.back();
+        } else {
+            router.push("/listings");
+        }
+    };
 
     // Reset scroll position on mount — prevents the previous page's scroll
     // position from carrying over on mobile (common with Next.js client navigation).
@@ -137,7 +153,7 @@ export default function VehicleDetailsClient() {
             {/* Mobile Top Bar */}
             <div className="lg:hidden fixed top-0 inset-x-0 h-16 px-4 flex items-center justify-between z-40 bg-white/90 backdrop-blur-md border-b border-slate-100">
                 <button
-                    onClick={() => router.back()}
+                    onClick={handleBack}
                     className="p-2 bg-white rounded-full shadow-sm text-slate-900 border border-slate-100"
                 >
                     <ChevronLeft size={22} />
@@ -168,7 +184,7 @@ export default function VehicleDetailsClient() {
                 {/* Desktop Top Actions */}
                 <div className="hidden lg:flex justify-between items-center mb-6">
                     <button
-                        onClick={() => router.back()}
+                        onClick={handleBack}
                         className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors"
                     >
                         <ChevronLeft size={16} /> Back
@@ -285,13 +301,18 @@ export default function VehicleDetailsClient() {
                     {/* Right Column: Details + CTAs */}
                     <div className="flex-1 px-4 lg:px-0 space-y-8 min-w-0">
                         <section className="space-y-4 pt-6 lg:pt-0">
-                            <div className="flex flex-wrap gap-2">
-                                <span className="bg-primary-50 text-primary-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ring-1 ring-primary-100">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
                                     {vehicle.year} Model
                                 </span>
                                 <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ring-1 ring-emerald-100">
                                     {vehicle.status}
                                 </span>
+                                {vehicle.negotiable && (
+                                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ring-1 ring-amber-100">
+                                        <HandshakeIcon size={11} /> Negotiable
+                                    </span>
+                                )}
                             </div>
                             <div className="space-y-1">
                                 <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight break-words">
@@ -301,9 +322,17 @@ export default function VehicleDetailsClient() {
                                     <MapPin size={14} className="shrink-0" /> <span className="truncate">Available at {vehicle.dealer?.name || "Broadway Motors"}, {vehicle.dealer?.location || "Gaborone"}</span>
                                 </p>
                             </div>
-                            <div className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter pt-4">
-                                P {vehicle.price.toLocaleString()}
-                                <span className="text-sm sm:text-base font-medium text-slate-400 ml-2 tracking-normal">VAT Incl.</span>
+                            <div className="pt-4 space-y-2">
+                                <div className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter">
+                                    P {vehicle.price.toLocaleString()}
+                                    <span className="text-sm sm:text-base font-medium text-slate-400 ml-2 tracking-normal">VAT Incl.</span>
+                                </div>
+                                {vehicle.negotiable && (
+                                    <div className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-full">
+                                        <HandshakeIcon size={13} />
+                                        <span className="text-xs font-black uppercase tracking-widest">Price Negotiable</span>
+                                    </div>
+                                )}
                             </div>
                         </section>
 

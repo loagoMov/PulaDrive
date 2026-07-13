@@ -5,7 +5,7 @@ import { useSession } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { X, Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { X, Upload, CheckCircle2, AlertCircle, HandshakeIcon } from "lucide-react";
 import { compressImage } from "@/utils/imageCompressor";
 import { uploadVehicleImage } from "@/utils/uploadToSupabase";
 
@@ -39,6 +39,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
 
     const [priceInput, setPriceInput] = useState("");
     const [mileageInput, setMileageInput] = useState("");
+    const [isNegotiable, setIsNegotiable] = useState(false);
 
     const formatNumber = (val: string) => {
         const num = val.replace(/\D/g, "");
@@ -147,6 +148,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                 status: "available" as const,
                 images: imageUrls,
                 description: formData.get("description") as string,
+                negotiable: isNegotiable,
             };
 
             await createVehicle(data);
@@ -286,6 +288,36 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                         <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Description</label>
                         <textarea name="description" rows={3} maxLength={2000} placeholder="Tell us more about the vehicle's condition, features, and history..." className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 font-sans text-sm text-slate-900" />
                     </div>
+
+                    {/* Negotiable Toggle */}
+                    <button
+                        type="button"
+                        onClick={() => setIsNegotiable(v => !v)}
+                        className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                            isNegotiable
+                                ? "border-amber-400 bg-amber-50"
+                                : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                        }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-xl transition-colors ${
+                                isNegotiable ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-400"
+                            }`}>
+                                <HandshakeIcon size={18} />
+                            </div>
+                            <div className="text-left">
+                                <p className={`text-sm font-black ${isNegotiable ? "text-amber-800" : "text-slate-700"}`}>Price Negotiable</p>
+                                <p className="text-[10px] text-slate-400 font-medium">Buyers will see a &quot;Negotiable&quot; badge on this listing</p>
+                            </div>
+                        </div>
+                        <div className={`w-11 h-6 rounded-full transition-colors flex items-center ${
+                            isNegotiable ? "bg-amber-400" : "bg-slate-200"
+                        }`}>
+                            <div className={`w-5 h-5 bg-white rounded-full shadow-sm mx-0.5 transition-transform ${
+                                isNegotiable ? "translate-x-5" : "translate-x-0"
+                            }`} />
+                        </div>
+                    </button>
 
                     {/* Photo Upload Requirements */}
                     <div className="space-y-4">

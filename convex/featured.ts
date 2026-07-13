@@ -42,6 +42,9 @@ export const apply = mutation({
 
         const vehicle = await ctx.db.get(args.vehicleId);
         if (!vehicle) throw new ConvexError("Vehicle not found.");
+        if (vehicle.status === "sold") {
+            throw new ConvexError("Sold vehicles cannot be promoted. Mark the listing as available if it is back in stock.");
+        }
 
         // Verify dealer ownership
         const dealership = await ctx.db.get(vehicle.dealerId);
@@ -185,6 +188,9 @@ export const approve = mutation({
 
         const vehicle = await ctx.db.get(app.vehicleId);
         if (!vehicle) throw new ConvexError("Associated vehicle not found.");
+        if (vehicle.status === "sold") {
+            throw new ConvexError("Cannot approve promotion for a sold vehicle. Ask the dealer to mark it available or reject the application.");
+        }
 
         // Set/Extend featured status
         const currentFeaturedUntil = vehicle.featuredUntil ?? 0;

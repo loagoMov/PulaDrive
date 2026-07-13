@@ -247,6 +247,7 @@ export const create = mutation({
         transmission: v.optional(v.string()),
         engineSize: v.optional(v.string()),
         color: v.optional(v.string()),
+        negotiable: v.optional(v.boolean()),
         category: v.optional(v.union(
             v.literal("suv"),
             v.literal("sedan"),
@@ -338,6 +339,7 @@ export const update = mutation({
         transmission: v.optional(v.string()),
         engineSize: v.optional(v.string()),
         color: v.optional(v.string()),
+        negotiable: v.optional(v.boolean()),
         category: v.optional(v.union(
             v.literal("suv"),
             v.literal("sedan"),
@@ -384,7 +386,27 @@ export const update = mutation({
             updateData.searchText = `${make} ${model}`.toLowerCase();
         }
 
-        await ctx.db.patch(id, { ...updateData, updatedAt: Date.now() });
+        const now = Date.now();
+        const markedSold =
+            fields.status === "sold" &&
+            existing.status !== "sold";
+        const hasActivePromotion =
+            (existing.featuredUntil ?? 0) > now;
+
+        await ctx.db.patch(id, { ...updateData, updatedAt: now });
+
+        if (markedSold && hasActivePromotion) {
+            const vehicleName = `${existing.year} ${existing.make} ${existing.model}`;
+            await ctx.db.insert("notifications", {
+                recipientId: existing.dealerId,
+                type: "system",
+                title: "Remove Promotion from Sold Vehicle",
+                message: `${vehicleName} was marked as sold but still has an active featured promotion. Remove the promotion to free the slot for an available listing.`,
+                isRead: false,
+                createdAt: now,
+                actionUrl: "/dashboard",
+            });
+        }
     },
 });
 
