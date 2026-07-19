@@ -187,7 +187,7 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
                         animate={{ scale: [1, 1.3, 1] }}
                         transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
                     />
-                    <div className="relative w-16 h-16 bg-gradient-to-tr from-primary-600 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg text-white">
+                    <div className="relative w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg text-white">
                         <Sparkles className="animate-pulse" size={32} />
                     </div>
                 </div>
@@ -235,7 +235,7 @@ function Results({ filters, onReset }: { filters: Filters; onReset: () => void }
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center py-14 px-6 text-center space-y-6">
                     <div className="relative w-20 h-20 flex items-center justify-center">
                         <div className="absolute inset-0 bg-rose-500/10 rounded-full blur-xl animate-pulse" />
-                        <div className="relative w-16 h-16 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-xl">
+                        <div className="relative w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center shadow-xl">
                             <Car size={30} className="text-white" />
                         </div>
                     </div>
@@ -510,7 +510,7 @@ export default function AdvancedSearchPage() {
                             <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">
                                 PulaDrive<span className="text-primary-600">.</span>
                             </h1>
-                            <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-primary-600 to-violet-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest">
+                            <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest">
                                 <Sparkles size={9} /> AI Deal Finder
                             </span>
                         </div>
@@ -538,14 +538,8 @@ export default function AdvancedSearchPage() {
 
                 {/* ── AI accent banner ─────────────────────────────────── */}
                 {!submitted && (
-                    <div
-                        className="relative overflow-hidden rounded-3xl px-6 py-5 text-white"
-                        style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%)" }}
-                    >
-                        {/* glow orbs */}
-                        <span className="absolute -top-8 -left-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-                        <span className="absolute -bottom-8 -right-8 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
-                        <div className="relative flex items-center justify-between gap-4">
+                    <div className="rounded-3xl px-6 py-5 text-white bg-indigo-600">
+                        <div className="flex items-center justify-between gap-4">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <span className="flex h-2 w-2 relative shrink-0">
@@ -797,8 +791,7 @@ export default function AdvancedSearchPage() {
                                 </button>
                             ) : (
                                 <button onClick={handleSubmit}
-                                    className="flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-white transition-all shadow-lg ml-auto cursor-pointer"
-                                    style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
+                                    className="flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-white transition-all shadow-lg ml-auto cursor-pointer bg-indigo-600 hover:bg-indigo-700">
                                     <Sparkles size={18} /> Find My Deal
                                 </button>
                             )}

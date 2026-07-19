@@ -77,7 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                     <div className="pt-4 flex flex-col gap-3">
                         <a
-                            href={`mailto:loagomontsho@icloud.com?subject=PulaDrive%20Dealership%20Access%20Request`}
+                            href={`mailto:support@puladrive.com?subject=PulaDrive%20Dealership%20Access%20Request`}
                             className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-all text-sm block"
                         >
                             Request Verification / Invitation

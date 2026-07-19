@@ -5,7 +5,7 @@ import { api } from "../../../convex/_generated/api";
 import MobileNav from "@/components/navigation/MobileNav";
 import CarCard from "@/components/ui/CarCard";
 import { SkeletonGrid } from "@/components/ui/SkeletonLoader";
-import { Search as SearchIcon, X, SlidersHorizontal, Car, Sparkles } from "lucide-react";
+import { Search as SearchIcon, X, SlidersHorizontal, Car, Sparkles, Store, ChevronRight, MapPin } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -17,6 +17,7 @@ const CATEGORIES = [
     { id: "suv", label: "SUVs" },
     { id: "sedan", label: "Sedans" },
     { id: "hatchback", label: "Hatchbacks" },
+    { id: "wagon", label: "Wagons" },
     { id: "truck", label: "Trucks / Bakkies" },
     { id: "luxury", label: "Luxury" },
     { id: "coupe", label: "Coupes" },
@@ -69,6 +70,10 @@ function SearchContent() {
         queryText: debouncedQuery,
         category: selectedCategory === "all" ? undefined : selectedCategory,
         targetPrice: debouncedTargetPrice,
+    });
+
+    const matchingDealers = useQuery(api.dealerships.search, {
+        queryText: debouncedQuery,
     });
 
     const { capture } = useAnalytics();
@@ -204,7 +209,46 @@ function SearchContent() {
 
                 {!vehicles ? (
                     <SkeletonGrid />
-                ) : vehicles.length === 0 ? (
+                ) : (
+                    <>
+                        {matchingDealers && matchingDealers.length > 0 && (
+                            <div className="mb-8 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">
+                                    Matching Dealerships
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                    {matchingDealers.map((dealer: any) => (
+                                        <Link
+                                            key={dealer._id}
+                                            href={`/dealers/${dealer.slug}`}
+                                            className="bg-white border border-slate-200 hover:border-primary-300 rounded-2xl p-4 shadow-sm transition-all flex items-center justify-between group"
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="relative w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border border-slate-100 overflow-hidden bg-slate-50">
+                                                    {dealer.logoUrl ? (
+                                                        <img src={dealer.logoUrl} alt={dealer.name} className="object-cover w-full h-full" />
+                                                    ) : (
+                                                        <Store className="w-6 h-6 text-primary-500" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h4 className="font-bold text-sm text-slate-900 group-hover:text-primary-600 transition-colors truncate">
+                                                        {dealer.name}
+                                                    </h4>
+                                                    <p className="text-slate-400 text-xs flex items-center gap-1 mt-0.5 truncate">
+                                                        <MapPin size={11} className="text-slate-400 shrink-0" />
+                                                        <span className="truncate">{dealer.location}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <ChevronRight size={16} className="text-slate-400 group-hover:text-primary-500 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {vehicles.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white rounded-[2rem] border border-slate-100 shadow-sm space-y-5">
                         <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400">
                             <Car size={28} />
@@ -233,6 +277,8 @@ function SearchContent() {
                             <CarCard key={car._id} car={car} />
                         ))}
                     </div>
+                )}
+                    </>
                 )}
             </div>
         </>

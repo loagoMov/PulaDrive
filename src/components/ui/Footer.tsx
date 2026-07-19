@@ -18,7 +18,7 @@ export default function Footer() {
     const emailBody = encodeURIComponent(
         `Hello PulaDrive Team,\n\nI would like to apply for a dealer account on PulaDrive.\n\nMy Details:\n- Name: ${user?.fullName || ""}\n- Dealership/Company Name: \n- Contact Phone: \n- Account Email: ${user?.primaryEmailAddress?.emailAddress || ""}\n\nThank you.`
     );
-    const mailtoLink = `mailto:loagomontsho@icloud.com?subject=${emailSubject}&body=${emailBody}`;
+    const mailtoLink = `mailto:support@puladrive.com?subject=${emailSubject}&body=${emailBody}`;
 
     return (
         <footer className="border-t border-slate-100 bg-white mt-16">

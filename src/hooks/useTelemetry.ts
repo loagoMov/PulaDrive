@@ -57,8 +57,11 @@ export function useTelemetry() {
     logMutationRef.current = logEvents;
   }, [logEvents]);
 
+  const isFlushingRef = useRef(false);
+
   const flushEvents = useCallback(async () => {
-    if (eventQueue.length === 0) return;
+    if (eventQueue.length === 0 || isFlushingRef.current) return;
+    isFlushingRef.current = true;
     const batch = [...eventQueue];
     eventQueue.length = 0; // Clear queue
     try {
@@ -72,6 +75,8 @@ export function useTelemetry() {
       console.error("Failed to flush telemetry events", err);
       // Re-add to queue if flush failed
       eventQueue.unshift(...batch);
+    } finally {
+      isFlushingRef.current = false;
     }
   }, []);
 

@@ -46,6 +46,11 @@ export default function DealerDashboard() {
     const updateVehicle = useMutation(api.vehicles.update);
     const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
 
+    // Determines if the currently active dealership is the PulaDrive-managed one.
+    // ONLY affects which fields are shown in the vehicle forms — no other
+    // dashboard logic is changed for regular dealers.
+    const isPulaDriveDealership = dealership?.name === "PulaDrive Dealership";
+
     useEffect(() => {
         if (dealership) {
             if (dealership.phone !== undefined) {
@@ -778,6 +783,7 @@ export default function DealerDashboard() {
                 <AddVehicleForm
                     dealerId={dealership._id}
                     onClose={() => setShowAddVehicle(false)}
+                    isPulaDriveDealership={isPulaDriveDealership}
                 />
             )}
 
@@ -786,6 +792,7 @@ export default function DealerDashboard() {
                     vehicle={editingVehicle}
                     onClose={() => setEditingVehicle(null)}
                     onSoldWhilePromoted={(car) => setPromotingVehicle(car)}
+                    isPulaDriveDealership={isPulaDriveDealership}
                 />
             )}
 

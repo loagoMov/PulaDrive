@@ -4,19 +4,22 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Search, MapPin, SlidersHorizontal, Sparkles, Clock, ArrowRight, Heart } from "lucide-react";
+import { Search, MapPin, SlidersHorizontal, Sparkles, Clock, ArrowRight, Heart, MessageCircle, Car } from "lucide-react";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { useAuth } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import Image from "next/image";
 
-// Import Error Boundary & Section Components
+// Import Error Boundary
 import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
-import FeaturedSection from "./components/FeaturedSection";
-import ExploreFeedSection from "./components/ExploreFeedSection";
-import ForYouFeedSection from "./components/ForYouFeedSection";
 
-// Dynamically import heavy UI elements to reduce bundle size and speed up FCP
-const MobileNav = dynamic(() => import("@/components/navigation/MobileNav"), { ssr: false });
+// Dynamically import all feed sections — defers their Convex queries until they are actually rendered
+const FeaturedSection    = dynamic(() => import("./components/FeaturedSection"),    { ssr: false });
+const ExploreFeedSection = dynamic(() => import("./components/ExploreFeedSection"), { ssr: false });
+const ForYouFeedSection  = dynamic(() => import("./components/ForYouFeedSection"),  { ssr: false });
+const MobileNav          = dynamic(() => import("@/components/navigation/MobileNav"), { ssr: false });
 
 export default function Home() {
     const router = useRouter();
@@ -26,6 +29,9 @@ export default function Home() {
 
     const { history } = useSearchHistory();
     const { trackEvent } = useTelemetry();
+
+    // "My Car" section: only fetch for signed-in sellers to avoid unnecessary queries for all guests
+    const sellerVehicles = useQuery(api.vehicles.getSellerVehicles, isSignedIn ? {} : "skip");
 
     useEffect(() => {
         trackEvent("page_view");
@@ -77,14 +83,8 @@ export default function Home() {
                 <Link
                     href="/search/advanced"
                     id="home-ai-deal-finder-btn"
-                    className="flex items-center justify-between w-full px-5 py-4 rounded-2xl text-white font-bold text-sm group relative overflow-hidden shadow-xl"
-                    style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%)" }}
+                    className="flex items-center justify-between w-full px-5 py-4 rounded-2xl text-white font-bold text-sm group relative overflow-hidden shadow-xl bg-indigo-600 hover:bg-indigo-700 transition-colors"
                 >
-                    <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                        style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)" }}
-                    />
-                    <span className="absolute -top-6 -left-6 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
-                    <span className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
 
                     <span className="relative flex items-center gap-3">
                         <span className="relative flex h-2.5 w-2.5 shrink-0">
@@ -97,7 +97,7 @@ export default function Home() {
                                 AI Deal Finder
                             </span>
                             <span className="text-white/60 font-normal text-xs">
-                                Enter your budget &amp; specs — we'll rank the best deals for you
+                                Enter your budget &amp; specs, we'll rank the best deals for you
                             </span>
                         </span>
                     </span>
@@ -105,6 +105,60 @@ export default function Home() {
                         Try it <ArrowRight size={14} />
                     </span>
                 </Link>
+
+                {/* Sell Privately Banner */}
+                <a
+                    href={`https://wa.me/26773429759?text=${encodeURIComponent("Hi PulaDrive! I'd like to sell my car privately. Please guide me through the verification and listing process.")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    id="home-sell-privately-btn"
+                    className="flex items-center justify-between w-full px-5 py-4 rounded-2xl text-white font-bold text-sm group relative overflow-hidden shadow-lg bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                >
+
+                    <span className="relative flex items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                            <MessageCircle size={20} className="text-white" />
+                        </span>
+                        <span className="flex flex-col text-left">
+                            <span className="text-base font-black">Sell Your Car Privately</span>
+                            <span className="text-white/70 font-normal text-xs">Chat with us on WhatsApp, we'll list it for you</span>
+                        </span>
+                    </span>
+                    <span className="relative flex items-center gap-1 text-white/80 text-xs font-black tracking-widest uppercase group-hover:text-white transition-colors shrink-0 ml-2">
+                        Start <ArrowRight size={14} />
+                    </span>
+                </a>
+
+                {/* "My Listings" banner — shown when the signed-in user has active private seller listings */}
+                {isSignedIn && sellerVehicles && sellerVehicles.length > 0 && (
+                    <Link
+                        href="/my-car"
+                        id="home-my-car-banner"
+                        className="flex items-center gap-4 w-full bg-slate-900 hover:bg-slate-800 rounded-2xl px-5 py-4 shadow-lg group transition-colors"
+                    >
+                        {sellerVehicles[0]?.imageUrls?.[0] ? (
+                            <Image
+                                src={sellerVehicles[0].imageUrls[0]}
+                                alt="My Listing preview"
+                                width={64}
+                                height={48}
+                                className="object-cover rounded-xl shrink-0"
+                            />
+                        ) : (
+                            <div className="w-16 h-12 bg-slate-700 rounded-xl flex items-center justify-center shrink-0">
+                                <Car size={22} className="text-slate-400" />
+                            </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-400 mb-0.5">Seller Portal</p>
+                            <p className="text-sm font-black text-white truncate">My Listings ({sellerVehicles.length})</p>
+                            <p className="text-xs text-slate-400 font-semibold">
+                                Manage pricing & negotiable status for your cars
+                            </p>
+                        </div>
+                        <ArrowRight size={18} className="text-slate-500 group-hover:text-white shrink-0 transition-colors" />
+                    </Link>
+                )}
 
                 {/* Recent searches strip */}
                 {history.length > 0 && (
@@ -130,12 +184,15 @@ export default function Home() {
                 {/* Categories / Quick filters */}
                 <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
                     {[
-                        { id: "all", label: "All Cars" },
+                        { id: "all", label: "All Vehicles" },
                         { id: "suv", label: "SUVs" },
                         { id: "sedan", label: "Sedans" },
                         { id: "hatchback", label: "Hatchbacks" },
+                        { id: "wagon", label: "Wagons" },
+                        { id: "truck", label: "Trucks / Bakkies" },
                         { id: "luxury", label: "Luxury" },
-                        { id: "truck", label: "Budget" }
+                        { id: "coupe", label: "Coupes" },
+                        { id: "van", label: "Vans" },
                     ].map((tab, i) => (
                         <Link
                             key={tab.id}

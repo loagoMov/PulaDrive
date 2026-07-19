@@ -1,6 +1,7 @@
 import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "./rateLimit";
+import { isGlobalAdmin } from "./utils";
 
 export const logEvents = mutation({
   args: {
@@ -149,5 +150,178 @@ export const getListingAnalytics = query({
       .query("listingAnalytics")
       .withIndex("by_dealer", (q) => q.eq("dealerId", args.dealerId))
       .collect();
+  },
+});
+
+// ─── Trend Analysis Queries ──────────────────────────────────────────────────
+
+/**
+ * Returns daily event counts for a specific dealership's vehicles over the
+ * last `days` days (7, 14, or 30).
+ *
+ * Security model:
+ *   • Requires authentication.
+ *   • The dealerId is fetched from DB and the caller's Clerk orgId must match
+ *     OR the caller must be a global admin — no arbitrary dealer ID accepted.
+ *   • Days is capped at 30 to prevent unbounded queries.
+ */
+export const getDealerTrendData = query({
+  args: {
+    dealerId: v.id("dealerships"),
+    days: v.union(v.literal(7), v.literal(14), v.literal(30)),
+    eventType: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError("Unauthorized.");
+
+    // Authorization: caller must own the dealership org or be a global admin.
+    const adminStatus = await isGlobalAdmin(ctx);
+    if (!adminStatus) {
+      const dealership = await ctx.db.get(args.dealerId);
+      if (!dealership) throw new ConvexError("Dealership not found.");
+      const callerOrgId = identity.orgID ?? identity.orgId ?? identity.subject;
+      if (dealership.clerkOrgId !== callerOrgId) {
+        throw new ConvexError("Forbidden: You can only view analytics for your own dealership.");
+      }
+    }
+
+    const daysMs = args.days * 24 * 60 * 60 * 1000;
+    const since = Date.now() - daysMs;
+
+    // Collect all vehicle IDs for the dealership.
+    const vehicles = await ctx.db
+      .query("vehicles")
+      .withIndex("by_dealer", (q) => q.eq("dealerId", args.dealerId))
+      .collect();
+    const vehicleIdSet = new Set(vehicles.map((v) => v._id));
+
+    // Fetch recent logs and filter by dealer's vehicles.
+    const logs = await ctx.db
+      .query("telemetryLogs")
+      .withIndex("by_timestamp", (q) => q.gt("timestamp", since))
+      .collect();
+
+    const dealerLogs = logs.filter(
+      (l) => l.vehicleId && vehicleIdSet.has(l.vehicleId) &&
+             (!args.eventType || l.eventType === args.eventType)
+    );
+
+    // Bucket into daily counts.
+    const buckets: Record<string, number> = {};
+    const now = Date.now();
+    for (let i = args.days - 1; i >= 0; i--) {
+      const d = new Date(now - i * 86400000);
+      buckets[d.toISOString().slice(0, 10)] = 0;
+    }
+    for (const log of dealerLogs) {
+      const day = new Date(log.timestamp).toISOString().slice(0, 10);
+      if (day in buckets) buckets[day]++;
+    }
+
+    return Object.entries(buckets).map(([date, count]) => ({ date, count }));
+  },
+});
+
+/**
+ * Returns platform-wide daily event counts over the last `days` days.
+ *
+ * Security model:
+ *   • Global admin only.
+ *   • Days capped at 30.
+ */
+export const getMarketplaceTrendData = query({
+  args: {
+    days: v.union(v.literal(7), v.literal(14), v.literal(30)),
+    eventType: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const adminStatus = await isGlobalAdmin(ctx);
+    if (!adminStatus) throw new ConvexError("Forbidden: Global administrators only.");
+
+    const daysMs = args.days * 24 * 60 * 60 * 1000;
+    const since = Date.now() - daysMs;
+
+    const logs = await ctx.db
+      .query("telemetryLogs")
+      .withIndex("by_timestamp", (q) => q.gt("timestamp", since))
+      .collect();
+
+    const filtered = args.eventType
+      ? logs.filter((l) => l.eventType === args.eventType)
+      : logs;
+
+    // Bucket into daily counts.
+    const buckets: Record<string, number> = {};
+    const now = Date.now();
+    for (let i = args.days - 1; i >= 0; i--) {
+      const d = new Date(now - i * 86400000);
+      buckets[d.toISOString().slice(0, 10)] = 0;
+    }
+    for (const log of filtered) {
+      const day = new Date(log.timestamp).toISOString().slice(0, 10);
+      if (day in buckets) buckets[day]++;
+    }
+
+    return Object.entries(buckets).map(([date, count]) => ({ date, count }));
+  },
+});
+
+/**
+ * Aggregates platform-wide metrics (by event type and by car category)
+ * for the last `days` days. Protected to admin only.
+ */
+export const getMarketplaceMetricsOverview = query({
+  args: {
+    days: v.union(v.literal(7), v.literal(14), v.literal(30)),
+  },
+  handler: async (ctx, args) => {
+    const adminStatus = await isGlobalAdmin(ctx);
+    if (!adminStatus) throw new ConvexError("Forbidden: Global administrators only.");
+
+    const daysMs = args.days * 24 * 60 * 60 * 1000;
+    const since = Date.now() - daysMs;
+
+    // Fetch logs
+    const logs = await ctx.db
+      .query("telemetryLogs")
+      .withIndex("by_timestamp", (q) => q.gt("timestamp", since))
+      .collect();
+
+    // Event Types buckets
+    const events: Record<string, number> = {
+      views: 0,
+      favorites: 0,
+      shares: 0,
+      clicks: 0,
+    };
+
+    // Category buckets
+    const categories: Record<string, number> = {};
+
+    // Collect vehicle categories for mapping logs
+    const vehicles = await ctx.db.query("vehicles").collect();
+    const vehicleCategoryMap = new Map(vehicles.map((v) => [v._id, v.category || "other"]));
+
+    for (const log of logs) {
+      // Event Type counting
+      const type = log.eventType;
+      if (type in events) {
+        events[type]++;
+      } else if (type === "book_visit_clicked" || type === "search_history_selected") {
+        events.clicks++;
+      }
+
+      // Category counting
+      if (log.vehicleId) {
+        const cat = vehicleCategoryMap.get(log.vehicleId) || "other";
+        categories[cat] = (categories[cat] || 0) + 1;
+      }
+    }
+
+    return {
+      eventBreakdown: Object.entries(events).map(([name, value]) => ({ name, value })),
+      categoryBreakdown: Object.entries(categories).map(([name, value]) => ({ name, value })),
+    };
   },
 });

@@ -4,17 +4,27 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useOrganization, useUser } from "@clerk/nextjs";
 import MobileNav from "@/components/navigation/MobileNav";
-import { Loader2, TrendingUp, BarChart, Eye, Heart, Share2, MousePointerClick, ArrowLeft } from "lucide-react";
+import { Loader2, TrendingUp, BarChart, Eye, Heart, Share2, MousePointerClick, ArrowLeft, LineChart as LineChartIcon, PieChart as PieChartIcon } from "lucide-react";
 import Link from "next/link";
 import DealershipSelector from "@/components/dashboard/DealershipSelector";
+import TrendChart from "@/components/dashboard/TrendChart";
+import { useState } from "react";
 
 export default function AnalyticsDashboard() {
     const { isLoaded } = useUser();
     const { organization } = useOrganization();
 
+    // Trend chart controls
+    const [trendDays, setTrendDays] = useState<7 | 14 | 30>(14);
+    const [chartType, setChartType] = useState<"line" | "bar" | "pie">("line");
+
     const dealership = useQuery(api.dealerships.getByClerkOrgId, organization ? { clerkOrgId: organization.id } : "skip");
     const vehicles = useQuery(api.vehicles.getByDealerId, dealership && dealership !== null ? { dealerId: dealership._id } : "skip");
     const analytics = useQuery(api.telemetry.getListingAnalytics, dealership && dealership !== null ? { dealerId: dealership._id } : "skip");
+    const trendData = useQuery(
+        api.telemetry.getDealerTrendData,
+        dealership && dealership !== null ? { dealerId: dealership._id, days: trendDays } : "skip"
+    );
 
     if (!isLoaded || dealership === undefined || vehicles === undefined || analytics === undefined) {
         return (
@@ -97,6 +107,63 @@ export default function AnalyticsDashboard() {
                             <p className="text-2xl sm:text-3xl font-black text-slate-900">{value}</p>
                         </div>
                     ))}
+                </div>
+
+                {/* ── Trend Analysis ─────────────────────────────────────────── */}
+                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5 sm:p-7 space-y-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <TrendingUp className="text-primary-500 w-5 h-5" /> Engagement Trends
+                        </h2>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {/* Days toggle */}
+                            <div className="flex bg-slate-100 rounded-xl p-0.5 gap-0.5">
+                                {([7, 14, 30] as const).map((d) => (
+                                    <button
+                                        key={d}
+                                        onClick={() => setTrendDays(d)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            trendDays === d ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                        }`}
+                                    >
+                                        {d}d
+                                    </button>
+                                ))}
+                            </div>
+                            {/* Chart type toggle */}
+                            <div className="flex bg-slate-100 rounded-xl p-0.5 gap-0.5">
+                                {([
+                                    { type: "line" as const, icon: <LineChartIcon size={14} /> },
+                                    { type: "bar" as const, icon: <BarChart size={14} /> },
+                                    { type: "pie" as const, icon: <PieChartIcon size={14} /> },
+                                ]).map(({ type, icon }) => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setChartType(type)}
+                                        title={type.charAt(0).toUpperCase() + type.slice(1) + " chart"}
+                                        className={`p-1.5 rounded-lg transition-all ${
+                                            chartType === type ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                        }`}
+                                    >
+                                        {icon}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {trendData === undefined ? (
+                        <div className="flex items-center justify-center h-40">
+                            <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />
+                        </div>
+                    ) : (
+                        <TrendChart
+                            data={trendData}
+                            type={chartType}
+                            color="#6366f1"
+                            height={220}
+                        />
+                    )}
                 </div>
 
                 {/* ── Top Performing Listings ─────────────────────────────────── */}

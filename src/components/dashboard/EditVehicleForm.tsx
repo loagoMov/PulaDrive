@@ -8,6 +8,7 @@ import { X, Upload, CheckCircle2, Loader2, Trash2, AlertTriangle, AlertCircle, H
 import Image from "next/image";
 import { compressImage } from "@/utils/imageCompressor";
 import { uploadVehicleImage } from "@/utils/uploadToSupabase";
+import { deleteVehicleImages } from "@/utils/deleteFromSupabase";
 
 // ─── Security constants ────────────────────────────────────────────────────────
 const MAX_FILE_SIZE_MB = 5;
@@ -19,9 +20,10 @@ interface EditVehicleFormProps {
     vehicle: any;
     onClose: () => void;
     onSoldWhilePromoted?: (vehicle: any) => void;
+    isPulaDriveDealership?: boolean;
 }
 
-export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted }: EditVehicleFormProps) {
+export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted, isPulaDriveDealership = false }: EditVehicleFormProps) {
     const updateVehicle = useMutation(api.vehicles.update);
     const removeVehicle = useMutation(api.vehicles.remove);
     const { session } = useSession();
@@ -32,7 +34,6 @@ export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted 
     const [success, setSuccess] = useState(false);
     const [exteriorFiles, setExteriorFiles] = useState<File[]>([]);
     const [interiorFiles, setInteriorFiles] = useState<File[]>([]);
-    const [engineBayFiles, setEngineBayFiles] = useState<File[]>([]);
     const [fileError, setFileError] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -56,12 +57,12 @@ export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted 
     };
 
     // V-07 fix: validate file MIME type and size before accepting
-    const handleFileChange = (category: 'exterior' | 'interior' | 'engineBay') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (category: 'exterior' | 'interior') => (e: React.ChangeEvent<HTMLInputElement>) => {
         setFileError(null);
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files);
 
-        const currentNewFiles = exteriorFiles.length + interiorFiles.length + engineBayFiles.length;
+        const currentNewFiles = exteriorFiles.length + interiorFiles.length;
         const newTotalNewFiles = currentNewFiles + newFiles.length;
 
         const totalImages = (vehicle.images?.length ?? 0) + newTotalNewFiles;
@@ -85,21 +86,24 @@ export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted 
         }
 
         if (category === 'exterior') setExteriorFiles(prev => [...prev, ...newFiles]);
-        else if (category === 'interior') setInteriorFiles(prev => [...prev, ...newFiles]);
-        else setEngineBayFiles(prev => [...prev, ...newFiles]);
+        else setInteriorFiles(prev => [...prev, ...newFiles]);
         
         e.target.value = "";
     };
 
-    const removeFile = (category: 'exterior' | 'interior' | 'engineBay', index: number) => {
+    const removeFile = (category: 'exterior' | 'interior', index: number) => {
         if (category === 'exterior') setExteriorFiles(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'interior') setInteriorFiles(prev => prev.filter((_, i) => i !== index));
-        else setEngineBayFiles(prev => prev.filter((_, i) => i !== index));
+        else setInteriorFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleDelete = async () => {
         setIsDeleting(true);
         try {
+            // Delete images from Supabase Storage first (with Clerk JWT for auth), then remove the Convex record
+            if (vehicle.images?.length) {
+                const token = await session?.getToken({ template: "supabase" }) ?? undefined;
+                await deleteVehicleImages(vehicle.images, token);
+            }
             await removeVehicle({ id: vehicle._id });
             setSuccess(true);
             setTimeout(() => {
@@ -124,7 +128,7 @@ export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted 
             let imageUrls: string[] = vehicle.images || [];
 
             // Upload any new files to Supabase Storage
-            const allFiles = [...exteriorFiles, ...interiorFiles, ...engineBayFiles];
+            const allFiles = [...exteriorFiles, ...interiorFiles];
             if (allFiles.length > 0) {
                 const newUrls: string[] = [];
                 for (const file of allFiles) {
@@ -155,6 +159,12 @@ export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted 
                 description: formData.get("description") as string,
                 images: imageUrls,
                 negotiable: isNegotiable,
+                // Private-seller fields (only submitted for PulaDrive Dealership)
+                ...(isPulaDriveDealership ? {
+                    customLocation: (formData.get("customLocation") as string) || undefined,
+                    customPhone: (formData.get("customPhone") as string) || undefined,
+                    sellerEmail: (formData.get("sellerEmail") as string) || undefined,
+                } : {}),
             });
 
             if (newStatus === "sold" && vehicle.status !== "sold" && wasPromoted && onSoldWhilePromoted) {
@@ -332,6 +342,31 @@ export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted 
                             <textarea name="description" defaultValue={vehicle.description} rows={3} maxLength={2000} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all" />
                         </div>
 
+                        {/* Private Seller Fields — only shown for PulaDrive Dealership */}
+                        {isPulaDriveDealership && (
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-white text-[9px] font-black">P</div>
+                                    <p className="text-xs font-black text-indigo-800 uppercase tracking-widest">Private Seller Details</p>
+                                </div>
+                                <p className="text-[10px] text-indigo-600 font-medium">These fields route enquiries directly to the seller, not PulaDrive.</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Seller Location</label>
+                                        <input name="customLocation" defaultValue={vehicle.customLocation ?? ""} maxLength={200} placeholder="e.g. Block 6, Gaborone" className="w-full bg-white border border-indigo-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 focus:border-indigo-400 font-sans text-sm text-slate-900" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Seller Phone / WhatsApp</label>
+                                        <input name="customPhone" defaultValue={vehicle.customPhone ?? ""} maxLength={30} placeholder="e.g. 26774000000" className="w-full bg-white border border-indigo-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 focus:border-indigo-400 font-sans text-sm text-slate-900" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Seller Email</label>
+                                    <input name="sellerEmail" type="email" defaultValue={vehicle.sellerEmail ?? ""} maxLength={320} placeholder="e.g. seller@example.com" className="w-full bg-white border border-indigo-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 focus:border-indigo-400 font-sans text-sm text-slate-900" />
+                                </div>
+                            </div>
+                        )}
+
                         {/* Negotiable Toggle */}
                         <button
                             type="button"
@@ -445,42 +480,6 @@ export default function EditVehicleForm({ vehicle, onClose, onSoldWhilePromoted 
                                                         className="w-full h-full object-cover" 
                                                     />
                                                     <button type="button" onClick={() => removeFile('interior', i)} className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white transition-opacity">
-                                                        <X size={14} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Engine Bay */}
-                                <div className={`border-2 border-dashed ${engineBayFiles.length > 0 ? 'border-blue-200 bg-blue-50/50' : 'border-slate-200'} rounded-2xl p-4 text-center space-y-2 hover:border-blue-300 transition-colors group`}>
-                                    <label className="cursor-pointer block">
-                                        <Upload className={`mx-auto ${engineBayFiles.length > 0 ? 'text-blue-500' : 'text-slate-300 group-hover:text-primary-500'} transition-colors`} size={24} />
-                                        <h5 className="font-bold text-slate-800 text-sm">Engine Bay</h5>
-                                        <p className={`text-xs font-bold ${engineBayFiles.length > 0 ? 'text-blue-600' : 'text-slate-500 group-hover:text-slate-900'} transition-colors`}>
-                                            {engineBayFiles.length > 0 ? `${engineBayFiles.length} file(s)` : "Upload more"}
-                                        </p>
-                                        <input
-                                            type="file"
-                                            multiple
-                                            accept="image/jpeg,image/png,image/webp"
-                                            className="hidden"
-                                            onChange={handleFileChange('engineBay')}
-                                        />
-                                    </label>
-                                    {engineBayFiles.length > 0 && (
-                                        <div className="flex flex-wrap justify-center gap-1.5 mt-3 pt-3 border-t border-slate-200/50">
-                                            {engineBayFiles.map((file, i) => (
-                                                <div key={i} className="relative w-10 h-10 rounded-lg overflow-hidden border border-slate-200 group/img">
-                                                    <Image 
-                                                        src={URL.createObjectURL(file)} 
-                                                        alt="preview" 
-                                                        fill
-                                                        sizes="40px"
-                                                        className="w-full h-full object-cover" 
-                                                    />
-                                                    <button type="button" onClick={() => removeFile('engineBay', i)} className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white transition-opacity">
                                                         <X size={14} />
                                                     </button>
                                                 </div>
