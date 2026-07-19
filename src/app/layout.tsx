@@ -7,7 +7,7 @@ import Footer from "@/components/ui/Footer";
 import CookieConsent from "@/components/ui/CookieConsent";
 import { PostHogProvider } from "@/components/PostHogProvider";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata = {
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://puladrive.com"),
@@ -81,5 +81,3 @@ export default function RootLayout({
         </PostHogProvider>
     );
 }
-
-

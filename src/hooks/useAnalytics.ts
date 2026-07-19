@@ -13,6 +13,7 @@
 
 import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
+import { useTelemetry } from "./useTelemetry";
 
 // ─── Event Catalog ────────────────────────────────────────────────────────────
 // Add new event types here. Every event has a name and a typed properties shape.
@@ -59,6 +60,7 @@ type PropsFor<E extends EventName> = Extract<AnalyticsEvent, { event: E }>["prop
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useAnalytics() {
   const ph = usePostHog();
+  const { trackEvent } = useTelemetry();
 
   /**
    * capture(event, props)
@@ -67,10 +69,26 @@ export function useAnalytics() {
    */
   const capture = useCallback(
     <E extends EventName>(event: E, props: PropsFor<E>) => {
-      if (!ph) return;
-      ph.capture(event, props);
+      // 1. PostHog tracking
+      if (ph) {
+        ph.capture(event, props);
+      }
+
+      // 2. Database Telemetry (Convex) tracking
+      // Maps key tracking events to our database telemetry layer so that view/click charts populate.
+      if (event === "listing_viewed" && props && "vehicle_id" in props) {
+        trackEvent("views", (props as any).vehicle_id, props);
+      } else if (event === "whatsapp_intent" && props && "vehicle_id" in props) {
+        trackEvent("clicks", (props as any).vehicle_id, { ...props, action: "whatsapp" });
+      } else if (event === "book_visit_clicked" && props && "vehicle_id" in props) {
+        trackEvent("clicks", (props as any).vehicle_id, { ...props, action: "call" });
+      } else if (event === "listing_favorited" && props && "vehicle_id" in props) {
+        trackEvent("favorites", (props as any).vehicle_id, props);
+      } else if (event === "listing_shared" && props && "vehicle_id" in props) {
+        trackEvent("shares", (props as any).vehicle_id, props);
+      }
     },
-    [ph]
+    [ph, trackEvent]
   );
 
   return { capture };

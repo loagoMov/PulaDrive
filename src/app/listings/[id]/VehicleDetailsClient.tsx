@@ -78,6 +78,13 @@ export default function VehicleDetailsClient() {
     const images = (vehicle.imageUrls && vehicle.imageUrls.length > 0) ? vehicle.imageUrls : ["/placeholder-car.jpg"];
 
     const dealerPhone = vehicle.dealer?.phone ?? "";
+    // For private-seller listings under "PulaDrive Dealership", use the
+    // listing-level custom fields rather than the dealership's global contact.
+    const isPulaDriveListing = vehicle.dealer?.name === "PulaDrive Dealership" && !!(vehicle as any).customPhone;
+    const effectivePhone = isPulaDriveListing ? (vehicle as any).customPhone : dealerPhone;
+    const effectiveLocation = isPulaDriveListing
+        ? ((vehicle as any).customLocation || vehicle.dealer?.location || "Gaborone")
+        : (vehicle.dealer?.location || "Gaborone");
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://puladrive.com";
     const listingUrl = typeof window !== "undefined"
         ? window.location.href
@@ -86,12 +93,12 @@ export default function VehicleDetailsClient() {
         `Hi ${vehicle.dealer?.name ?? "there"},\n\n` +
         `I'm interested in the *${vehicle.year} ${vehicle.make} ${vehicle.model}* listed on PulaDrive.\n\n` +
         `Price: *P ${vehicle.price.toLocaleString()}*\n` +
-        `Dealer: *${vehicle.dealer?.name ?? "Your Dealership"}*${vehicle.dealer?.location ? `, ${vehicle.dealer.location}` : ""}\n` +
+        `Location: *${effectiveLocation}*\n` +
         (vehicle.mileage ? `Mileage: *${vehicle.mileage.toLocaleString()} km*\n` : "") +
         `\nView Listing: ${listingUrl}\n\n` +
         `Could you please provide more information and arrange a viewing? Thank you!`
     );
-    const whatsappUrl = dealerPhone ? `https://wa.me/${dealerPhone}?text=${whatsappMessage}` : null;
+    const whatsappUrl = effectivePhone ? `https://wa.me/${effectivePhone}?text=${whatsappMessage}` : null;
 
     const handleShare = async () => {
         const shareData = {
@@ -137,7 +144,9 @@ export default function VehicleDetailsClient() {
         }
     };
 
-    const contactPhone = vehicle.dealer?.contactPhone || vehicle.dealer?.phone || "";
+    const contactPhone = isPulaDriveListing
+        ? (vehicle as any).customPhone || ""
+        : (vehicle.dealer?.contactPhone || vehicle.dealer?.phone || "");
     const handleCall = () => {
         if (contactPhone) {
             capture("book_visit_clicked", {
@@ -319,7 +328,7 @@ export default function VehicleDetailsClient() {
                                     {vehicle.make} <span className="text-primary-600">{vehicle.model}</span>
                                 </h1>
                                 <p className="text-sm font-medium text-slate-400 flex items-center gap-1 min-w-0">
-                                    <MapPin size={14} className="shrink-0" /> <span className="truncate">Available at {vehicle.dealer?.name || "Broadway Motors"}, {vehicle.dealer?.location || "Gaborone"}</span>
+                                    <MapPin size={14} className="shrink-0" /> <span className="truncate">Available at {vehicle.dealer?.name || "Broadway Motors"}, {effectiveLocation}</span>
                                 </p>
                             </div>
                             <div className="pt-4 space-y-2">
@@ -394,14 +403,10 @@ export default function VehicleDetailsClient() {
                         <section className="border-t border-slate-100 pt-6">
                             <Link
                                 href="/search/advanced"
-                                className="group block relative overflow-hidden rounded-3xl p-5 text-white transition-all hover:scale-[1.01] active:scale-[0.99]"
-                                style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #9333ea 100%)" }}
+                                className="group block rounded-3xl p-5 text-white transition-all hover:scale-[1.01] active:scale-[0.99] bg-indigo-600 hover:bg-indigo-700"
                             >
-                                {/* Glow orbs */}
-                                <span className="absolute -top-10 -left-10 w-36 h-36 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-                                <span className="absolute -bottom-8 -right-8 w-44 h-44 bg-white/5 rounded-full blur-3xl pointer-events-none" />
 
-                                <div className="relative flex items-start justify-between gap-4">
+                                <div className="flex items-start justify-between gap-4">
                                     <div className="flex-1 space-y-2.5">
                                         {/* Live badge */}
                                         <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm border border-white/20 rounded-full px-3 py-1">

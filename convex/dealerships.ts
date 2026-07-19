@@ -22,6 +22,26 @@ export const list = query({
     },
 });
 
+export const search = query({
+    args: { queryText: v.string() },
+    handler: async (ctx, args) => {
+        const safeQuery = args.queryText.toLowerCase().trim();
+        if (safeQuery === "") {
+            return [];
+        }
+        const rows = await ctx.db.query("dealerships").collect();
+        const filtered = rows.filter((d) => 
+            d.name.toLowerCase().includes(safeQuery) ||
+            d.location.toLowerCase().includes(safeQuery) ||
+            (d.description && d.description.toLowerCase().includes(safeQuery))
+        );
+        return filtered.map((d) => ({
+            ...d,
+            phone: d.phone ? `***${d.phone.slice(-4)}` : undefined,
+        }));
+    },
+});
+
 export const getBySlug = query({
     args: { slug: v.string() },
     handler: async (ctx, args) => {

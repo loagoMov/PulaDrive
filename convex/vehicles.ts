@@ -95,10 +95,14 @@ export const listPaginated = query({
         }
 
         const page = await Promise.all(
-            paginatedResults.page.map(async (car) => ({
-                ...car,
-                imageUrls: await resolveImageUrls(ctx, car.images),
-            }))
+            paginatedResults.page.map(async (car) => {
+                const dealer = await ctx.db.get(car.dealerId);
+                return {
+                    ...car,
+                    imageUrls: await resolveImageUrls(ctx, car.images),
+                    dealer: dealer ? { name: dealer.name, location: dealer.location } : null,
+                };
+            })
         );
 
         return {
@@ -127,10 +131,14 @@ export const list = query({
         }
 
         return Promise.all(
-            results.map(async (car) => ({
-                ...car,
-                imageUrls: await resolveImageUrls(ctx, car.images),
-            }))
+            results.map(async (car) => {
+                const dealer = await ctx.db.get(car.dealerId);
+                return {
+                    ...car,
+                    imageUrls: await resolveImageUrls(ctx, car.images),
+                    dealer: dealer ? { name: dealer.name, location: dealer.location } : null,
+                };
+            })
         );
     },
 });
@@ -151,10 +159,16 @@ export const getVehicle = query({
                 phone: dealer.phone ?? "",
                 contactPhone: dealer.contactPhone ?? ""
             } : null,
+            // Private-seller fields are safe to expose here because the
+            // client only renders them on matching listings.
+            customLocation: car.customLocation,
+            customPhone: car.customPhone,
+            sellerEmail: undefined, // Never expose seller email to the public listing page
             imageUrls: await resolveImageUrls(ctx, car.images),
         };
     },
 });
+
 
 export const getByDealerId = query({
     args: { dealerId: v.id("dealerships") },
@@ -166,10 +180,14 @@ export const getByDealerId = query({
             .take(50);
 
         return Promise.all(
-            results.map(async (car) => ({
-                ...car,
-                imageUrls: await resolveImageUrls(ctx, car.images),
-            }))
+            results.map(async (car) => {
+                const dealer = await ctx.db.get(car.dealerId);
+                return {
+                    ...car,
+                    imageUrls: await resolveImageUrls(ctx, car.images),
+                    dealer: dealer ? { name: dealer.name, location: dealer.location } : null,
+                };
+            })
         );
     },
 });
@@ -207,10 +225,14 @@ export const search = query({
         }
 
         return Promise.all(
-            results.map(async (car) => ({
-                ...car,
-                images: await resolveImageUrls(ctx, car.images),
-            }))
+            results.map(async (car) => {
+                const dealer = await ctx.db.get(car.dealerId);
+                return {
+                    ...car,
+                    imageUrls: await resolveImageUrls(ctx, car.images),
+                    dealer: dealer ? { name: dealer.name, location: dealer.location } : null,
+                };
+            })
         );
     },
 });
@@ -258,6 +280,11 @@ export const create = mutation({
             v.literal("van"),
             v.literal("luxury")
         )),
+        // Private-seller fields — only used for PulaDrive Dealership managed listings.
+        // These are validated and written but are never exposed to regular dealers.
+        customLocation: v.optional(v.string()),
+        customPhone: v.optional(v.string()),
+        sellerEmail: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         // V-02 fix: require authentication
@@ -273,13 +300,22 @@ export const create = mutation({
         const dealership = await ctx.db.get(args.dealerId);
         if (!dealership) throw new ConvexError("Dealership not found.");
         
-        if (dealership.accountStatus === "frozen") {
-            throw new ConvexError("Your account is currently frozen. Please settle any outstanding invoices or contact support to resume listing vehicles.");
-        }
-
-        const callerOrgId = identity.orgID ?? identity.orgId ?? identity.subject;
-        if (dealership.clerkOrgId !== callerOrgId) {
-            throw new ConvexError("Forbidden: You cannot create listings for another dealership.");
+        // V-03 fix: verify the caller belongs to the dealership org.
+        // Global admins may create listings under any dealership (including the
+        // managed PulaDrive Dealership used for private-seller listings).
+        const callerIsAdmin = await isGlobalAdmin(ctx);
+        if (!callerIsAdmin) {
+            if (dealership.accountStatus === "frozen") {
+                throw new ConvexError("Your account is currently frozen. Please settle any outstanding invoices or contact support to resume listing vehicles.");
+            }
+            const callerOrgId = identity.orgID ?? identity.orgId ?? identity.subject;
+            if (dealership.clerkOrgId !== callerOrgId) {
+                throw new ConvexError("Forbidden: You cannot create listings for another dealership.");
+            }
+        } else if (dealership.accountStatus === "frozen") {
+            // Admins may still list on frozen accounts only if they explicitly override;
+            // here we keep the guard for safety.
+            throw new ConvexError("Dealership account is frozen. Unfreeze it before adding listings.");
         }
 
         // V-08 fix: input length and range validation
@@ -294,6 +330,16 @@ export const create = mutation({
         if (args.price <= 0) throw new ConvexError("Price must be a positive number.");
         if (args.mileage !== undefined && args.mileage < 0) throw new ConvexError("Mileage cannot be negative.");
         if (args.images.length > MAX_IMAGES) throw new ConvexError(`You may upload at most ${MAX_IMAGES} images.`);
+        // Private-seller field validation (security: length-cap & email format)
+        const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}$/;
+        if (args.customLocation && args.customLocation.length > 200) throw new ConvexError("Custom location must be ≤ 200 characters.");
+        if (args.customPhone && args.customPhone.length > 30) throw new ConvexError("Custom phone must be ≤ 30 characters.");
+        if (args.sellerEmail && !EMAIL_RE.test(args.sellerEmail)) throw new ConvexError("Seller email is not a valid email address.");
+        if (args.sellerEmail && args.sellerEmail.length > 320) throw new ConvexError("Seller email must be ≤ 320 characters.");
+        // Security: private-seller fields may only be set by global admins.
+        if (!callerIsAdmin && (args.customLocation || args.customPhone || args.sellerEmail)) {
+            throw new ConvexError("Forbidden: Only administrators can set private-seller fields on a listing.");
+        }
 
         // ── Subscription slot enforcement ──────────────────────────────────────
         // Count non-sold vehicles (available + reserved) — sold listings do not use a slot.
@@ -351,6 +397,10 @@ export const update = mutation({
             v.literal("luxury")
         )),
         images: v.optional(v.array(v.string())),
+        // Private-seller fields (admin only; see security guard in handler)
+        customLocation: v.optional(v.string()),
+        customPhone: v.optional(v.string()),
+        sellerEmail: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         // V-02 + V-03 fix: require auth and ownership
@@ -377,6 +427,17 @@ export const update = mutation({
         if (args.price !== undefined && args.price <= 0) throw new ConvexError("Price must be a positive number.");
         if (args.mileage !== undefined && args.mileage < 0) throw new ConvexError("Mileage cannot be negative.");
         if (args.images && args.images.length > MAX_IMAGES) throw new ConvexError(`You may upload at most ${MAX_IMAGES} images.`);
+        // Private-seller field validation on update
+        const updateEmailRe = /^[^\s@]{1,64}@[^\s@]{1,255}$/;
+        if (args.customLocation && args.customLocation.length > 200) throw new ConvexError("Custom location must be ≤ 200 characters.");
+        if (args.customPhone && args.customPhone.length > 30) throw new ConvexError("Custom phone must be ≤ 30 characters.");
+        if (args.sellerEmail && !updateEmailRe.test(args.sellerEmail)) throw new ConvexError("Seller email is not a valid email address.");
+        if (args.sellerEmail && args.sellerEmail.length > 320) throw new ConvexError("Seller email must be ≤ 320 characters.");
+        // Security: private-seller fields may only be mutated by global admins.
+        const updaterIsAdmin = await isGlobalAdmin(ctx);
+        if (!updaterIsAdmin && (args.customLocation !== undefined || args.customPhone !== undefined || args.sellerEmail !== undefined)) {
+            throw new ConvexError("Forbidden: Only administrators can modify private-seller fields.");
+        }
 
         const { id, ...fields } = args;
         const updateData: any = { ...fields };
@@ -425,7 +486,7 @@ export const remove = mutation({
             );
         }
 
-        // Images are stored on Supabase; no local storage cleanup needed.
+        // Images are cleaned up in Supabase Storage client-side before this mutation is called.
 
         await ctx.db.delete(args.id);
     },
@@ -538,10 +599,12 @@ export const getFeatured = query({
         const mapped = await Promise.all(
             results.map(async (car) => {
                 const imageUrls = await resolveImageUrls(ctx, car.images);
+                const dealer = await ctx.db.get(car.dealerId);
                 return {
                     ...car,
                     imageUrls,
                     images: imageUrls,
+                    dealer: dealer ? { name: dealer.name, location: dealer.location } : null,
                 };
             })
         );
@@ -722,3 +785,103 @@ export const getByIds = query({
 });
 
 
+// ─── Private-Seller Portal: queries & mutations ───────────────────────────────
+
+/**
+ * Returns all active vehicles linked to the currently authenticated user's email
+ * via the `sellerEmail` field. Only vehicles belonging to the caller's own email
+ * are returned.
+ *
+ * Security model:
+ *   • Requires authentication.
+ *   • Filters strictly by the caller's own verified email address.
+ */
+export const getSellerVehicles = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity || !identity.email) return [];
+
+        const results = await ctx.db
+            .query("vehicles")
+            .withIndex("by_seller_email", (q) => q.eq("sellerEmail", identity.email as string))
+            .filter((q) => q.neq(q.field("status"), "sold"))
+            .take(50);
+
+        return Promise.all(
+            results.map(async (car) => {
+                const dealer = await ctx.db.get(car.dealerId);
+                return {
+                    ...car,
+                    imageUrls: await resolveImageUrls(ctx, car.images),
+                    dealer: dealer ? { name: dealer.name, location: dealer.location } : null,
+                };
+            })
+        );
+    },
+});
+
+/**
+ * Allows a verified private seller to update ONLY the `price` and `negotiable`
+ * fields of their own linked listing.
+ *
+ * Security model:
+ *   • Requires authentication.
+ *   • RATE LIMITED — prevents spam price updates.
+ *   • The vehicle's `sellerEmail` MUST match the caller's verified Clerk email
+ *     (identity.email), preventing any cross-account manipulation.
+ *   • The vehicle MUST belong to a dealership named "PulaDrive Dealership"
+ *     (checked server-side via the DB record) — private-seller edits are
+ *     never available to regular dealership-owned listings.
+ *   • Callers may ONLY set `price` and `negotiable` — no other fields can be
+ *     changed through this endpoint.
+ *   • Negative or zero prices are rejected.
+ */
+export const updateSellerVehicle = mutation({
+    args: {
+        id: v.id("vehicles"),
+        price: v.optional(v.number()),
+        negotiable: v.optional(v.boolean()),
+    },
+    handler: async (ctx, args) => {
+        // ── Auth: must be signed in ───────────────────────────────────────────
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity || !identity.email) {
+            throw new ConvexError("Unauthorized: You must be signed in to edit your listing.");
+        }
+
+        // ── Rate limit ───────────────────────────────────────────────────────
+        await checkRateLimit(
+            ctx,
+            rateLimitKey("update_vehicle", "user", identity.subject),
+            RATE_LIMITS.UPDATE_VEHICLE
+        );
+
+        // ── Fetch the vehicle ─────────────────────────────────────────────────
+        const vehicle = await ctx.db.get(args.id);
+        if (!vehicle) throw new ConvexError("Listing not found.");
+
+        // ── Ownership: sellerEmail must match caller's verified email ─────────
+        if (!vehicle.sellerEmail || vehicle.sellerEmail !== identity.email) {
+            throw new ConvexError("Forbidden: This listing is not linked to your account.");
+        }
+
+        // ── Scope guard: only applies to PulaDrive Dealership listings ─────────
+        const dealership = await ctx.db.get(vehicle.dealerId);
+        if (!dealership || dealership.name !== "PulaDrive Dealership") {
+            throw new ConvexError("Forbidden: Seller self-service is only available for PulaDrive-managed listings.");
+        }
+
+        // ── Input validation ─────────────────────────────────────────────────
+        if (args.price !== undefined && args.price <= 0) {
+            throw new ConvexError("Price must be a positive number.");
+        }
+
+        // ── Scoped patch (price + negotiable ONLY) ────────────────────────────
+        const patch: Record<string, any> = { updatedAt: Date.now() };
+        if (args.price !== undefined) patch.price = args.price;
+        if (args.negotiable !== undefined) patch.negotiable = args.negotiable;
+
+        await ctx.db.patch(args.id, patch);
+    },
+});

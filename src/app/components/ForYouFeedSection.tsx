@@ -51,8 +51,7 @@ export default function ForYouFeedSection({ targetId, onStartExploring }: ForYou
 
         <button
           onClick={onStartExploring}
-          className="flex items-center gap-2 px-6 py-3 font-black text-sm text-white rounded-2xl shadow-lg shadow-indigo-200 transition-all cursor-pointer"
-          style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+          className="flex items-center gap-2 px-6 py-3 font-black text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-lg transition-all cursor-pointer"
         >
           <ArrowRight size={16} /> Start Exploring
         </button>

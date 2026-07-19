@@ -136,12 +136,21 @@ export default defineSchema({
         searchText: v.optional(v.string()),
         featuredUntil: v.optional(v.number()),
         updatedAt: v.optional(v.number()),
+        // ── Private-seller / managed listing fields ───────────────────────────
+        // These fields are ONLY populated for listings made under the
+        // "PulaDrive Dealership" on behalf of individual private sellers.
+        // They override the dealership's global contact details on the
+        // public listing page so enquiries reach the actual seller.
+        customLocation: v.optional(v.string()),   // seller's pickup/viewing location
+        customPhone: v.optional(v.string()),       // seller's WhatsApp / phone
+        sellerEmail: v.optional(v.string()),       // Clerk email of the verified seller
     })
         .index("by_dealer", ["dealerId"])
         .index("by_status", ["status"])
         .index("by_status_and_category", ["status", "category"])
         .index("by_status_and_featured_until", ["status", "featuredUntil"])
         .index("by_updated_at", ["updatedAt"])
+        .index("by_seller_email", ["sellerEmail"])
         .searchIndex("search_vehicles", {
             searchField: "searchText",
             filterFields: ["status"],

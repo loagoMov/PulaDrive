@@ -18,6 +18,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 interface AddVehicleFormProps {
     dealerId: Id<"dealerships">;
     onClose: () => void;
+    isPulaDriveDealership?: boolean;
 }
 
 interface FilePreview {
@@ -25,7 +26,7 @@ interface FilePreview {
     objectUrl: string;
 }
 
-export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProps) {
+export default function AddVehicleForm({ dealerId, onClose, isPulaDriveDealership = false }: AddVehicleFormProps) {
     const createVehicle = useMutation(api.vehicles.create);
     const { session } = useSession();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +34,6 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
     const [showFrozenModal, setShowFrozenModal] = useState(false);
     const [exteriorFiles, setExteriorFiles] = useState<FilePreview[]>([]);
     const [interiorFiles, setInteriorFiles] = useState<FilePreview[]>([]);
-    const [engineBayFiles, setEngineBayFiles] = useState<FilePreview[]>([]);
     const [fileError, setFileError] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -56,12 +56,12 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
     };
 
     // V-07 fix: validate file MIME type and size before accepting
-    const handleFileChange = (category: 'exterior' | 'interior' | 'engineBay') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (category: 'exterior' | 'interior') => (e: React.ChangeEvent<HTMLInputElement>) => {
         setFileError(null);
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files);
 
-        const currentTotal = exteriorFiles.length + interiorFiles.length + engineBayFiles.length;
+        const currentTotal = exteriorFiles.length + interiorFiles.length;
         const newTotal = currentTotal + newFiles.length;
 
         if (newTotal > MAX_IMAGES) {
@@ -89,25 +89,20 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
         }));
 
         if (category === 'exterior') setExteriorFiles(prev => [...prev, ...filePreviews]);
-        else if (category === 'interior') setInteriorFiles(prev => [...prev, ...filePreviews]);
-        else setEngineBayFiles(prev => [...prev, ...filePreviews]);
+        else setInteriorFiles(prev => [...prev, ...filePreviews]);
         
         e.target.value = "";
     };
 
-    const removeFile = (category: 'exterior' | 'interior' | 'engineBay', index: number) => {
+    const removeFile = (category: 'exterior' | 'interior', index: number) => {
         // Cleanup blob URL to prevent memory leaks
         if (category === 'exterior') {
             URL.revokeObjectURL(exteriorFiles[index].objectUrl);
             setExteriorFiles(prev => prev.filter((_, i) => i !== index));
         }
-        else if (category === 'interior') {
+        else {
             URL.revokeObjectURL(interiorFiles[index].objectUrl);
             setInteriorFiles(prev => prev.filter((_, i) => i !== index));
-        }
-        else {
-            URL.revokeObjectURL(engineBayFiles[index].objectUrl);
-            setEngineBayFiles(prev => prev.filter((_, i) => i !== index));
         }
     };
 
@@ -123,8 +118,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
             const imageUrls: string[] = [];
             const allFiles = [
                 ...exteriorFiles.map(f => f.file),
-                ...interiorFiles.map(f => f.file),
-                ...engineBayFiles.map(f => f.file)
+                ...interiorFiles.map(f => f.file)
             ];
             for (const file of allFiles) {
                 const compressedFile = await compressImage(file, 1200, 0.82);
@@ -149,6 +143,12 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                 images: imageUrls,
                 description: formData.get("description") as string,
                 negotiable: isNegotiable,
+                // Private-seller fields (only submitted for PulaDrive Dealership)
+                ...(isPulaDriveDealership ? {
+                    customLocation: (formData.get("customLocation") as string) || undefined,
+                    customPhone: (formData.get("customPhone") as string) || undefined,
+                    sellerEmail: (formData.get("sellerEmail") as string) || undefined,
+                } : {}),
             };
 
             await createVehicle(data);
@@ -289,6 +289,31 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                         <textarea name="description" rows={3} maxLength={2000} placeholder="Tell us more about the vehicle's condition, features, and history..." className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 font-sans text-sm text-slate-900" />
                     </div>
 
+                    {/* Private Seller Fields — only shown for PulaDrive Dealership */}
+                    {isPulaDriveDealership && (
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-white text-[9px] font-black">P</div>
+                                <p className="text-xs font-black text-indigo-800 uppercase tracking-widest">Private Seller Details</p>
+                            </div>
+                            <p className="text-[10px] text-indigo-600 font-medium">These fields will route enquiries directly to the seller, not PulaDrive.</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Seller Location</label>
+                                    <input name="customLocation" maxLength={200} placeholder="e.g. Block 6, Gaborone" className="w-full bg-white border border-indigo-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 focus:border-indigo-400 font-sans text-sm text-slate-900" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Seller Phone / WhatsApp</label>
+                                    <input name="customPhone" maxLength={30} placeholder="e.g. 26774000000" className="w-full bg-white border border-indigo-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 focus:border-indigo-400 font-sans text-sm text-slate-900" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 pl-1">Seller Email (links listing to their account)</label>
+                                <input name="sellerEmail" type="email" maxLength={320} placeholder="e.g. seller@example.com" className="w-full bg-white border border-indigo-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 focus:border-indigo-400 font-sans text-sm text-slate-900" />
+                            </div>
+                        </div>
+                    )}
+
                     {/* Negotiable Toggle */}
                     <button
                         type="button"
@@ -326,7 +351,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                             <p className="text-xs text-slate-500">Please provide at least 2 photos for each category (Max {MAX_IMAGES} total).</p>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Exterior */}
                             <div className={`border-2 border-dashed ${exteriorFiles.length >= 2 ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200'} rounded-2xl p-4 text-center space-y-2 group transition-all`}>
                                 <label className="cursor-pointer block">
@@ -388,37 +413,6 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
                                     </div>
                                 )}
                             </div>
-
-                            {/* Engine Bay */}
-                            <div className={`border-2 border-dashed ${engineBayFiles.length >= 2 ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200'} rounded-2xl p-4 text-center space-y-2 group transition-all`}>
-                                <label className="cursor-pointer block">
-                                    <Upload className={`mx-auto ${engineBayFiles.length >= 2 ? 'text-emerald-500' : 'text-slate-300 group-hover:text-primary-500'} transition-colors`} size={24} />
-                                    <h5 className="font-bold text-slate-800 text-sm">Engine Bay</h5>
-                                    <p className={`text-xs font-bold ${engineBayFiles.length >= 2 ? 'text-emerald-600' : 'text-slate-500 group-hover:text-slate-900'} transition-colors`}>
-                                        {engineBayFiles.length > 0 ? `${engineBayFiles.length} file(s)` : "Min. 2 photos"}
-                                    </p>
-                                    <input
-                                        type="file"
-                                        multiple
-                                        accept="image/jpeg,image/png,image/webp"
-                                        className="hidden"
-                                        onChange={handleFileChange('engineBay')}
-                                    />
-                                </label>
-                                {engineBayFiles.length > 0 && (
-                                    <div className="flex flex-wrap justify-center gap-1.5 mt-3 pt-3 border-t border-slate-200/50">
-                                        {engineBayFiles.map((preview, i) => (
-                                            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-200 group/img">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={preview.objectUrl} alt="preview" className="w-full h-full object-cover" />
-                                                <button type="button" onClick={() => removeFile('engineBay', i)} className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white transition-opacity">
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </div>
 
@@ -440,7 +434,7 @@ export default function AddVehicleForm({ dealerId, onClose }: AddVehicleFormProp
 
                     <button
                         type="submit"
-                        disabled={isSubmitting || !!fileError || exteriorFiles.length < 2 || interiorFiles.length < 2 || engineBayFiles.length < 2}
+                        disabled={isSubmitting || !!fileError || exteriorFiles.length < 2 || interiorFiles.length < 2}
                         className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed py-4 sticky bottom-0 z-10"
                     >
                         {isSubmitting ? "Listing Vehicle..." : "Publish Listing"}

@@ -7,12 +7,14 @@ import { useUser, UserButton } from "@clerk/nextjs";
 import {
     Shield, Users, Building2, Star, Plus, Trash2, Check, Loader2,
     AlertTriangle, Flag, Eye, XCircle, ChevronDown, ChevronUp, MessageSquare, Sparkles, Car, CreditCard,
-    Layers, Zap, Infinity as InfinityIcon, CheckCircle2, X
+    Layers, Zap, Infinity as InfinityIcon, CheckCircle2, X,
+    TrendingUp, BarChart as BarChartIcon, LineChart as LineChartIcon, PieChart as PieChartIcon
 } from "lucide-react";
 import { useState, Fragment, useEffect } from "react";
 import Link from "next/link";
 import MobileNav from "@/components/navigation/MobileNav";
 import NotificationCenter from "../components/NotificationCenter";
+import TrendChart from "@/components/dashboard/TrendChart";
 
 const REASON_LABELS: Record<string, string> = {
     fraudulent_listing:   "🚨 Fraudulent Listing",
@@ -163,9 +165,17 @@ export default function GlobalAdminDashboard() {
     const [featuredFilter,   setFeaturedFilter]     = useState<"all" | "pending" | "waitlisted" | "approved" | "rejected" | "expired" | "revoked">("pending");
     const [expandedReport,   setExpandedReport]     = useState<string | null>(null);
     const [adminNoteInput,   setAdminNoteInput]     = useState<Record<string, string>>({});
-    const [activeTab,        setActiveTab]          = useState<"dealerships" | "reports" | "promotions" | "subscriptions">("dealerships");
-    const [tierUpdating,     setTierUpdating]       = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<"dealerships" | "reports" | "promotions" | "subscriptions">("dealerships");
+    const [expandedDealer, setExpandedDealer] = useState<string | null>(null);
+
+    // Platform trend analytics
+    const [trendDays, setTrendDays] = useState<7 | 14 | 30>(14);
+    const [chartType, setChartType] = useState<"line" | "bar" | "pie">("line");
+    const marketplaceTrend = useQuery(api.telemetry.getMarketplaceTrendData, { days: trendDays });
+    const metricsOverview = useQuery(api.telemetry.getMarketplaceMetricsOverview, { days: trendDays });
     const [reqAdminNote,     setReqAdminNote]       = useState<Record<string, string>>({});
+    const [tierUpdating,     setTierUpdating]       = useState<string | null>(null);
+
 
     // Subscription queries + mutations
     const upgradeRequests   = useQuery(api.subscriptions.listUpgradeRequests, isGlobalAdmin ? {} : "skip");
@@ -357,6 +367,103 @@ export default function GlobalAdminDashboard() {
                         </div>
                         {(openReports?.length ?? 0) > 0 && (
                             <span className="ml-auto text-xs font-black text-rose-500 animate-pulse">Review →</span>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Platform Trend Analysis ───────────────────────────────── */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Activity Trend Line Chart */}
+                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5 lg:p-6 space-y-4 lg:col-span-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                <TrendingUp className="text-emerald-500 w-4 h-4" /> Platform Traffic Flow
+                            </h2>
+                            <div className="flex items-center gap-2">
+                                <div className="flex bg-slate-100 rounded-xl p-0.5 gap-0.5">
+                                    {([7, 14, 30] as const).map((d) => (
+                                        <button
+                                            key={d}
+                                            onClick={() => setTrendDays(d)}
+                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${
+                                                trendDays === d ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                            }`}
+                                        >
+                                            {d}d
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex bg-slate-100 rounded-xl p-0.5 gap-0.5">
+                                    {([
+                                        { type: "line" as const, icon: <LineChartIcon size={12} /> },
+                                        { type: "bar" as const, icon: <BarChartIcon size={12} /> },
+                                    ]).map(({ type, icon }) => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setChartType(type)}
+                                            className={`p-1 rounded-lg transition-all ${
+                                                chartType === type ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                            }`}
+                                        >
+                                            {icon}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {marketplaceTrend === undefined ? (
+                            <div className="flex items-center justify-center h-48">
+                                <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />
+                            </div>
+                        ) : (
+                            <TrendChart
+                                data={marketplaceTrend}
+                                type={chartType === "pie" ? "line" : chartType}
+                                color="#10b981"
+                                height={180}
+                            />
+                        )}
+                    </div>
+
+                    {/* Metric Actions Breakdown */}
+                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5 lg:p-6 space-y-4 flex flex-col justify-between">
+                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                            <Layers className="text-violet-500 w-4 h-4" /> Actions Breakdown
+                        </h2>
+                        {metricsOverview === undefined ? (
+                            <div className="flex items-center justify-center h-48">
+                                <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />
+                            </div>
+                        ) : (
+                            <div className="py-2">
+                                <TrendChart
+                                    data={metricsOverview.eventBreakdown.map((e) => ({ date: e.name, count: e.value }))}
+                                    type="pie"
+                                    height={160}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Categories Performance Chart */}
+                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5 lg:p-6 space-y-4 lg:col-span-3">
+                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                            <Car className="text-amber-500 w-4 h-4" /> Traffic by Vehicle Class
+                        </h2>
+                        {metricsOverview === undefined ? (
+                            <div className="flex items-center justify-center h-40">
+                                <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />
+                            </div>
+                        ) : metricsOverview.categoryBreakdown.length === 0 ? (
+                            <p className="text-slate-400 text-xs text-center py-10 font-bold">No categorical logs recorded.</p>
+                        ) : (
+                            <TrendChart
+                                data={metricsOverview.categoryBreakdown.map((c) => ({ date: c.name, count: c.value }))}
+                                type="bar"
+                                color="#f59e0b"
+                                height={180}
+                            />
                         )}
                     </div>
                 </div>

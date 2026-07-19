@@ -406,7 +406,10 @@ export default function AdminBillingPage() {
     const rosterData = useQuery(api.billing.getAllDealersBillingSummary) || [];
     // Fetch all approved upgrade requests so we can link them to invoices
     const upgradeRequests = useQuery(api.subscriptions.listUpgradeRequests, isGlobalAdmin ? {} : "skip") ?? [];
-    const approvedRequests = upgradeRequests.filter((r: any) => r.status === "approved");
+    const invoicedDealerIds = new Set(pendingInvoices.map((inv: any) => inv.dealerId));
+    const approvedRequests = upgradeRequests.filter(
+        (r: any) => r.status === "approved" && !invoicedDealerIds.has(r.dealerId)
+    );
 
     const processBankStatement = useMutation(api.billing.processBankStatement);
     const linkManualAliasToDealer = useMutation(api.billing.linkManualAliasToDealer);
